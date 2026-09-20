@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:fitsSystemWindows="true">
+
+    <!-- ── Search bar ── -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="8dp"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="2dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="4dp">
+
+            <ImageView
+                android:id="@+id/headerLogo"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginEnd="10dp"
+                android:background="@drawable/bubble_circle_bg"
+                android:contentDescription="@string/app_name"
+                android:padding="6dp"
+                android:src="@drawable/ic_music_note"
+                app:tint="#FFFFFFFF" />
+
+            <EditText
+                android:id="@+id/searchInput"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="@string/search_hint"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:maxLines="1"
+                android:importantForAutofill="no"
+                android:textSize="15sp" />
+
+            <ImageButton
+                android:id="@+id/clearButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/search_clear_input"
+                android:padding="9dp"
+                android:src="@drawable/ic_close"
+                android:visibility="gone"
+                app:tint="?attr/colorOnSurfaceVariant" />
+
+            <ImageButton
+                android:id="@+id/micButton"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/voice_search"
+                android:padding="10dp"
+                android:src="@drawable/ic_mic"
+                app:tint="?attr/colorPrimary" />
+
+            <ImageButton
+                android:id="@+id/searchButton"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/bubble_search"
+                android:padding="10dp"
+                android:src="@drawable/search_24px"
+                app:tint="?attr/colorPrimary" />
+
+            <!-- Shown only when the "display over other apps" permission is
+                 missing, so the floating bubble can be enabled anytime. -->
+            <ImageButton
+                android:id="@+id/overlayButton"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/enable_bubble"
+                android:padding="10dp"
+                android:src="@drawable/ic_overlay"
+                android:visibility="gone"
+                app:tint="?attr/colorPrimary" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- ── Content area: web + suggestions overlay ── -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- ── Web area ── -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <com.gsvn.aamusic.web.BackgroundPlayWebView
+                android:id="@+id/webView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:overScrollMode="never" />
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/progressIndicator"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:layout_gravity="top"
+                android:visibility="gone"
+                app:trackThickness="3dp"
+                app:indicatorColor="?attr/colorPrimary" />
+
+            <FrameLayout
+                android:id="@+id/fullscreenContainer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <!-- ── Suggestions: lớp phủ CỐ ĐỊNH che cả vùng nội dung khi đang nhập,
+             không co giãn theo số item nên không còn nháy khi gõ. ── -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/suggestionsPanel"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="6dp"
+            android:visibility="gone">
+
+            <com.gsvn.aamusic.widget.MaxHeightScrollView
+                android:id="@+id/suggestionsScroll"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scrollbars="vertical">
+
+                <LinearLayout
+                    android:id="@+id/suggestionsList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="6dp" />
+
+            </com.gsvn.aamusic.widget.MaxHeightScrollView>
+        </com.google.android.material.card.MaterialCardView>
+    </FrameLayout>
+
+    <!-- ── In-app keyboard, only shown on the Android Auto (car) display where
+         the system IME is unusable. Built at runtime. ── -->
+    <com.gsvn.aamusic.widget.CarKeyboard
+        android:id="@+id/carKeyboard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorSurface"
+        android:visibility="gone" />
+
+</LinearLayout>

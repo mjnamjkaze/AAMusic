@@ -1,0 +1,50 @@
+<resources>
+    <string name="app_name">DriveTune</string>
+    <string name="media_notification_channel_name">Background playback</string>
+    <string name="media_notification_channel_description">Keeps music playing in the background</string>
+    <string name="media_notification_content_text">Playing in background</string>
+
+    <string name="search_hint">Tìm bài hát, nghệ sĩ, truyện…</string>
+    <string name="search_recent">Gần đây</string>
+    <string name="search_suggestions">Gợi ý</string>
+    <string name="search_suggestions_online">Gợi ý YouTube</string>
+    <string name="search_clear">Xoá lịch sử</string>
+    <string name="search_clear_input">Xoá nội dung</string>
+    <string name="search_remove_one">Xoá</string>
+    <string name="search_pin">Ghim</string>
+    <string name="search_unpin">Bỏ ghim</string>
+    <string name="enable_bubble">Bật bong bóng nổi</string>
+    <string name="fullscreen_exit">Thoát toàn màn hình</string>
+    <string name="fullscreen_bubble">Thu nhỏ thành bong bóng</string>
+    <string name="voice_search">Tìm bằng giọng nói</string>
+    <string name="voice_search_prompt">Nói để tìm kiếm…</string>
+    <string name="voice_search_unavailable">Thiết bị không hỗ trợ nhận dạng giọng nói</string>
+
+    <string name="settings_open">Cài đặt</string>
+    <string name="settings_offline_title">Lưu offline khi phát</string>
+    <string name="settings_offline_desc">Bài đang nghe được tải ngầm về máy để nghe lại khi mất mạng. Tốn thêm dung lượng máy và data.</string>
+    <string name="settings_offline_on">Đã bật. Bài đang phát sẽ được tải ngầm, tốc độ xấp xỉ tốc độ phát.</string>
+    <string name="settings_downloads_header">Bài đã tải (%1$d) · %2$.1f MB</string>
+    <string name="settings_downloads_empty">Chưa có bài nào. Bật công tắc ở trên rồi phát một bài.</string>
+    <string name="settings_downloads_clear">Xoá tất cả</string>
+    <string name="settings_downloads_clear_confirm">Xoá toàn bộ bài đã tải khỏi máy?</string>
+
+    <string name="offline_saving">Đang lưu: %1$s</string>
+    <string name="offline_saved">Đã lưu offline: %1$s</string>
+    <string name="offline_failed">Không lưu được: %1$s (%2$s)</string>
+
+    <string name="about_org">Gosei Việt Nam</string>
+    <string name="about_tagline">App cộng đồng</string>
+    <string name="about_link">gosei.com.vn</string>
+
+    <string name="bubble_playing">Đang phát</string>
+    <string name="bubble_prev">Bài trước</string>
+    <string name="bubble_next">Bài sau</string>
+    <string name="bubble_play_pause">Phát/Tạm dừng</string>
+    <string name="bubble_search">Tìm kiếm</string>
+    <string name="bubble_open">Mở app</string>
+    <string name="bubble_collapse">Thu gọn</string>
+    <string name="bubble_close">Đóng</string>
+
+    <string name="overlay_permission_rationale">Cấp quyền \"Hiển thị trên ứng dụng khác\" để dùng bong bóng điều khiển nhạc khi mở bản đồ.</string>
+</resources>

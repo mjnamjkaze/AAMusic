@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Brand red (matches the app launcher icon) so the collapsed bubble,
+     the header logo, and the app icon all look unified. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <gradient
+        android:type="linear"
+        android:angle="315"
+        android:startColor="#FFFF1E1E"
+        android:endColor="#FFD40000" />
+</shape>

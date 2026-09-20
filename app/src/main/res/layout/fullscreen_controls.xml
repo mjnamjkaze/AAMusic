@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nút nổi ở góc trên-phải khi video phát fullscreen: thoát fullscreen và
+     thu nhỏ app thành bubble (nhạc tiếp tục phát nền). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal">
+
+    <ImageButton
+        android:id="@+id/fsExitButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="@drawable/fullscreen_btn_bg"
+        android:contentDescription="@string/fullscreen_exit"
+        android:padding="12dp"
+        android:src="@drawable/ic_fullscreen_exit" />
+
+    <ImageButton
+        android:id="@+id/fsBubbleButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="12dp"
+        android:background="@drawable/fullscreen_btn_bg"
+        android:contentDescription="@string/fullscreen_bubble"
+        android:padding="12dp"
+        android:src="@drawable/ic_bubble_minimize" />
+</LinearLayout>

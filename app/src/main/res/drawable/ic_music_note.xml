@@ -1,0 +1,25 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24"
+    android:tint="#FFFFFFFF">
+    <!-- YT Audio brand glyph: play triangle + sound-wave bars (single color,
+         also used as the notification small icon which renders alpha-only). -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M4,7.6 L4,16.4 Q4,18 5.4,17.2 L13,12.6 Q14,12 13,11.4 L5.4,6.8 Q4,6 4,7.6Z" />
+    <path
+        android:pathData="M16.2,9.2 L16.2,14.8"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M19.2,6.4 L19.2,17.6"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M22,10.2 L22,13.8"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+</vector>
