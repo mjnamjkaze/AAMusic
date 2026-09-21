@@ -284,14 +284,22 @@ object AdBlocker {
             ].join('\n');
             (document.head || document.documentElement).appendChild(style);
 
-            function player() {
-                return document.querySelector('#movie_player, .html5-video-player');
-            }
-
             /** Video của trình phát, không phải thẻ <video> lạc nào đó trên trang. */
             function playerVideo() {
-                var p = player();
+                // PreviewGuard biết đâu là trình phát chính, đâu là ô xem thử
+                // trong danh sách; thiếu nó thì quay về cách đoán cũ.
+                if (window.__ytaMainVideo) {
+                    var m = window.__ytaMainVideo();
+                    if (m) return m;
+                }
+                var p = document.querySelector('#movie_player, .html5-video-player');
                 return (p && p.querySelector('video')) || document.querySelector('video');
+            }
+
+            function player() {
+                var v = playerVideo();
+                var p = v && v.closest && v.closest('#movie_player, .html5-video-player');
+                return p || document.querySelector('#movie_player, .html5-video-player');
             }
 
             /**

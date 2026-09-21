@@ -116,8 +116,15 @@ object PlayerController {
     // ── Injected JS (works on both YouTube Music and regular YouTube) ───
     // Đặt lại window.__ytaWantPlay theo trạng thái SAU cú bấm, để watchdog
     // chống-pause (PlaybackGuard) biết người dùng còn muốn nghe hay không.
+    //
+    // Luôn lấy video qua $V chứ không phải querySelector('video'): thẻ đầu
+    // tiên của trang chủ là ô xem thử trong danh sách, bấm nút trên vô lăng mà
+    // trúng nó thì bài đang nghe không hề nhúc nhích. PreviewGuard cung cấp
+    // __ytaMainVideo; chưa chạy được thì quay về cách cũ.
+    private const val V =
+        "(window.__ytaMainVideo?window.__ytaMainVideo():document.querySelector('video'))"
     private const val JS_PLAY_PAUSE =
-        "(function(){var v=document.querySelector('video');" +
+        "(function(){var v=${'$'}V;" +
             "window.__ytaWantPlay=v?v.paused:true;" +
             "var b=document.querySelector('ytmusic-player-bar #play-pause-button, " +
             "#play-pause-button, .ytp-play-button, tp-yt-paper-icon-button.play-pause-button');" +
@@ -128,18 +135,18 @@ object PlayerController {
     private const val JS_RESUME =
         "(function(){if(window.__ytaWantPlay===false)return;" +
             "window.__ytaWantPlay=true;" +
-            "var v=document.querySelector('video');" +
+            "var v=${'$'}V;" +
             "if(v&&v.paused){var p=v.play();if(p&&p.catch)p.catch(function(){});}})()"
 
     // Cờ __ytaWantPlay được bật lại để watchdog của PlaybackGuard tiếp tục canh.
     private const val JS_FORCE_PLAY =
         "(function(){window.__ytaWantPlay=true;" +
-            "var v=document.querySelector('video');" +
+            "var v=${'$'}V;" +
             "if(v&&v.paused){var p=v.play();if(p&&p.catch)p.catch(function(){});}})()"
 
     private const val JS_PAUSE =
         "(function(){window.__ytaWantPlay=false;" +
-            "var v=document.querySelector('video');if(v&&!v.paused)v.pause();})()"
+            "var v=${'$'}V;if(v&&!v.paused)v.pause();})()"
 
     private const val JS_NEXT =
         "(function(){var b=document.querySelector('ytmusic-player-bar .next-button, " +
@@ -150,7 +157,7 @@ object PlayerController {
     private const val JS_PREV =
         "(function(){var b=document.querySelector('ytmusic-player-bar .previous-button, " +
             ".previous-button, .ytp-prev-button, tp-yt-paper-icon-button.previous-button');" +
-            "if(b){b.click();return;}var v=document.querySelector('video');" +
+            "if(b){b.click();return;}var v=${'$'}V;" +
             "if(v&&v.currentTime>3){v.currentTime=0;return;}document.dispatchEvent(" +
             "new KeyboardEvent('keydown',{key:'P',keyCode:80,which:80,shiftKey:true,bubbles:true}));})()"
 
@@ -160,6 +167,6 @@ object PlayerController {
             "if(!t){var h=document.querySelector('h1.ytd-watch-metadata, .ytp-title-link');" +
             "if(h)t=(h.textContent||'').trim();}" +
             "if(!t)t=(document.title||'').replace(/\\s*-\\s*YouTube.*$/,'').trim();" +
-            "var v=document.querySelector('video');var p=v?!v.paused:false;" +
+            "var v=${'$'}V;var p=v?!v.paused:false;" +
             "return JSON.stringify({t:t,p:p});})()"
 }

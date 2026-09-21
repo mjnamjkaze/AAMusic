@@ -9,6 +9,10 @@ package com.gsvn.aamusic.web
  *    không ai bấm, tiếng cứ thế lặng đi. Watchdog này phát tiếp.
  *  - [LOW_QUALITY_JS]: app nghe là chính, nhưng trang vẫn tải song song luồng
  *    hình. Ép chất lượng xuống mức thấp nhất để cắt phần dung lượng đó.
+ *
+ * Cả hai đều bám vào "thẻ video của trình phát chính" do [PreviewGuard] xác
+ * định, không phải thẻ <video> đầu tiên của trang — trên trang chủ thẻ đầu
+ * tiên thường là ô xem thử trong danh sách.
  */
 object PlaybackGuard {
 
@@ -89,8 +93,19 @@ object PlaybackGuard {
                 return false;
             }
 
+            // Trình phát bọc quanh video chính — ô preview cũng dựng ra một
+            // '.html5-video-player' của riêng nó nên không hỏi trang trước.
             function player() {
-                return document.querySelector('#movie_player, .html5-video-player');
+                var v = mainVideo();
+                var p = v && v.closest && v.closest('#movie_player, .html5-video-player');
+                return p || document.querySelector('#movie_player, .html5-video-player');
+            }
+
+            // Thẻ video của trình phát chính. PreviewGuard đã loại ô preview
+            // trong danh sách ra rồi; không có nó thì đành lấy thẻ đầu tiên.
+            function mainVideo() {
+                if (window.__ytaMainVideo) return window.__ytaMainVideo();
+                return document.querySelector('video');
             }
 
             function playNow(v) {
@@ -117,7 +132,7 @@ object PlaybackGuard {
                 v.addEventListener('ended', function() {
                     if (!window.__ytaWantPlay) return;
                     setTimeout(function() {
-                        var cur = document.querySelector('video');
+                        var cur = mainVideo();
                         if (!cur || !cur.ended) return;
                         var next = document.querySelector(
                             'ytmusic-player-bar .next-button, .next-button, .ytp-next-button');
@@ -152,7 +167,7 @@ object PlaybackGuard {
             }
 
             setInterval(function() {
-                var v = document.querySelector('video');
+                var v = mainVideo();
                 if (!v) return;
                 hook(v);
 
