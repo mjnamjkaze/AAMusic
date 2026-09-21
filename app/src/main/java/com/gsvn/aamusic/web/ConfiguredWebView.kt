@@ -78,6 +78,9 @@ fun configureWebView(
 
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
             WebViewCompat.addDocumentStartJavaScript(this, DOCUMENT_START_JS, setOf("*"))
+            // Phải chạy trước script của trang thì mới cắt được dữ liệu quảng cáo
+            // trước khi trình phát đọc — xem AdBlocker.EARLY_JS.
+            WebViewCompat.addDocumentStartJavaScript(this, AdBlocker.EARLY_JS, setOf("*"))
         }
 
         webViewClient = object : WebViewClient() {
@@ -101,6 +104,7 @@ fun configureWebView(
 
                 if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
                     view.evaluateJavascript(DOCUMENT_START_JS, null)
+                    view.evaluateJavascript(AdBlocker.EARLY_JS, null)
                 }
 
                 val pageUrl = url?.lowercase() ?: ""

@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.webkit.WebView
 import com.gsvn.aamusic.MainActivity
-import com.gsvn.aamusic.offline.OfflinePlayer
 import org.json.JSONObject
 import org.json.JSONTokener
 import java.lang.ref.WeakReference
@@ -33,33 +32,26 @@ object PlayerController {
 
     private fun webView(): WebView? = webViewRef?.get()
 
-    // Đang nghe bài đã tải thì mọi nút (bong bóng, notification, MediaSession)
-    // điều khiển trình phát offline; còn lại vẫn đi qua JS của trang.
+    fun playPause() = eval(JS_PLAY_PAUSE)
 
-    fun playPause() {
-        if (OfflinePlayer.isActive) OfflinePlayer.playPause() else eval(JS_PLAY_PAUSE)
-    }
+    fun next() = eval(JS_NEXT)
 
-    fun next() {
-        if (OfflinePlayer.isActive) OfflinePlayer.next() else eval(JS_NEXT)
-    }
+    fun previous() = eval(JS_PREV)
 
-    fun previous() {
-        if (OfflinePlayer.isActive) OfflinePlayer.previous() else eval(JS_PREV)
-    }
+    /**
+     * Phát tiếp sau khi giành lại audio focus (chỉ đường Maps, cuộc gọi…).
+     * Tôn trọng cú bấm tạm dừng của người dùng: đang dừng chủ động thì để yên.
+     */
+    fun resume() = eval(JS_RESUME)
 
-    /** Tạm dừng video của trang, dùng khi chuyển sang phát bài offline. */
-    fun pauseWeb() = eval(
-        "(function(){window.__ytaWantPlay=false;" +
-            "var v=document.querySelector('video');if(v&&!v.paused)v.pause();})()"
-    )
+    /** Phát ngay theo lệnh rõ ràng (nút play trên vô lăng / notification). */
+    fun play() = eval(JS_FORCE_PLAY)
+
+    /** Dừng theo ý người dùng: hạ cờ để watchdog không tự phát lại. */
+    fun pause() = eval(JS_PAUSE)
 
     /** Poll current title + playing state; callback runs on the main thread. */
     fun queryState(callback: (title: String, playing: Boolean) -> Unit) {
-        if (OfflinePlayer.isActive) {
-            callback(OfflinePlayer.currentTrack?.title.orEmpty(), OfflinePlayer.isPlaying)
-            return
-        }
         val wv = webView() ?: run { callback("", false); return }
         wv.post {
             wv.evaluateJavascript(JS_STATE) { result ->
@@ -73,6 +65,12 @@ object PlayerController {
     fun openSearch() = launchActivity {
         it.action = MainActivity.ACTION_SEARCH
         it.putExtra(MainActivity.EXTRA_FOCUS_SEARCH, true)
+    }
+
+    /** Đưa app lên trước và mở luôn hộp thoại tìm bằng giọng nói. */
+    fun openVoiceSearch() = launchActivity {
+        it.action = MainActivity.ACTION_SEARCH
+        it.putExtra(MainActivity.EXTRA_START_VOICE, true)
     }
 
     /** Bring the app to the front and run a search for [query]. */
@@ -125,6 +123,23 @@ object PlayerController {
             "#play-pause-button, .ytp-play-button, tp-yt-paper-icon-button.play-pause-button');" +
             "if(b){b.click();return;}" +
             "if(v){if(v.paused)v.play();else v.pause();}})()"
+
+    // Bỏ qua nếu PlaybackGuard đã ghi nhận người dùng chủ động tạm dừng.
+    private const val JS_RESUME =
+        "(function(){if(window.__ytaWantPlay===false)return;" +
+            "window.__ytaWantPlay=true;" +
+            "var v=document.querySelector('video');" +
+            "if(v&&v.paused){var p=v.play();if(p&&p.catch)p.catch(function(){});}})()"
+
+    // Cờ __ytaWantPlay được bật lại để watchdog của PlaybackGuard tiếp tục canh.
+    private const val JS_FORCE_PLAY =
+        "(function(){window.__ytaWantPlay=true;" +
+            "var v=document.querySelector('video');" +
+            "if(v&&v.paused){var p=v.play();if(p&&p.catch)p.catch(function(){});}})()"
+
+    private const val JS_PAUSE =
+        "(function(){window.__ytaWantPlay=false;" +
+            "var v=document.querySelector('video');if(v&&!v.paused)v.pause();})()"
 
     private const val JS_NEXT =
         "(function(){var b=document.querySelector('ytmusic-player-bar .next-button, " +

@@ -15,9 +15,6 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
-import android.support.v4.media.MediaMetadataCompat
-import android.support.v4.media.session.MediaSessionCompat
-import android.support.v4.media.session.PlaybackStateCompat
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -31,6 +28,7 @@ import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.media.app.NotificationCompat as MediaStyleNotif
+import com.gsvn.aamusic.player.MediaSessionHolder
 import com.gsvn.aamusic.player.PlayerController
 import kotlin.math.abs
 import kotlin.math.hypot
@@ -62,12 +60,15 @@ class BackgroundPlaybackService : Service() {
     private var screenW = 0
     private var screenH = 0
 
-    // Native media session so the background-playback notification shows the
-    // app's own branding (icon/title/controls) instead of YouTube's artwork.
-    private var mediaSession: MediaSessionCompat? = null
-    private var lastTitle: String? = null
-    private var lastPlaying: Boolean? = null
+    // Notification hiển thị thương hiệu của app thay vì artwork của YouTube.
+    // Phiên media nằm ở [MediaSessionHolder] (sống suốt vòng đời app), ở đây
+    // chỉ mượn token để dựng MediaStyle.
     private val artwork: Bitmap by lazy { buildArtwork() }
+
+    // Phiên media có thể đã đúng sẵn (activity cũng poll), nhưng notification
+    // của service thì chưa — nên dò trùng riêng, đừng dùng chung với phiên.
+    private var lastNotifTitle: String? = null
+    private var lastNotifPlaying: Boolean? = null
 
     private val handler = Handler(Looper.getMainLooper())
     private var polling = false
@@ -76,14 +77,20 @@ class BackgroundPlaybackService : Service() {
         override fun run() {
             if (!polling) return
             PlayerController.queryState { title, playing ->
-                titleView?.text = title.ifBlank { getString(R.string.bubble_playing) }
+                val shownTitle = title.ifBlank { getString(R.string.bubble_playing) }
+                titleView?.text = shownTitle
                 playPauseBtn?.setImageResource(
                     if (playing) R.drawable.ic_pause else R.drawable.ic_play
                 )
-                if (title != lastTitle || playing != lastPlaying) {
-                    lastTitle = title
-                    lastPlaying = playing
-                    updateMediaState(title, playing)
+                MediaSessionHolder.update(shownTitle, playing, artwork)
+
+                if (shownTitle != lastNotifTitle || playing != lastNotifPlaying) {
+                    lastNotifTitle = shownTitle
+                    lastNotifPlaying = playing
+                    runCatching {
+                        getSystemService(NotificationManager::class.java)
+                            .notify(NOTIFICATION_ID, buildNotification(shownTitle, playing))
+                    }
                 }
             }
             handler.postDelayed(this, POLL_INTERVAL_MS)
@@ -93,7 +100,8 @@ class BackgroundPlaybackService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        setupMediaSession()
+        MediaSessionHolder.ensure(this)
+        MediaSessionHolder.onStopRequested = { stopEverything() }
         acquireWakeLock()
     }
 
@@ -116,8 +124,9 @@ class BackgroundPlaybackService : Service() {
     override fun onDestroy() {
         stopPolling()
         removeBubble()
-        mediaSession?.release()
-        mediaSession = null
+        lastNotifTitle = null
+        lastNotifPlaying = null
+        MediaSessionHolder.onStopRequested = null
         releaseWakeLock()
         super.onDestroy()
     }
@@ -167,6 +176,7 @@ class BackgroundPlaybackService : Service() {
         root.findViewById<ImageButton>(R.id.btnPrev).setOnClickListener { PlayerController.previous() }
         playPauseBtn?.setOnClickListener { PlayerController.playPause() }
         root.findViewById<ImageButton>(R.id.btnNext).setOnClickListener { PlayerController.next() }
+        root.findViewById<ImageButton>(R.id.btnVoice).setOnClickListener { PlayerController.openVoiceSearch() }
         root.findViewById<ImageButton>(R.id.btnSearch).setOnClickListener { PlayerController.openSearch() }
         root.findViewById<ImageButton>(R.id.btnOpen).setOnClickListener { PlayerController.openApp() }
         root.findViewById<ImageButton>(R.id.btnCollapse).setOnClickListener { collapse() }
@@ -353,54 +363,6 @@ class BackgroundPlaybackService : Service() {
         manager.createNotificationChannel(channel)
     }
 
-    private fun setupMediaSession() {
-        mediaSession = MediaSessionCompat(this, "AAMusic").apply {
-            setCallback(object : MediaSessionCompat.Callback() {
-                override fun onPlay() { PlayerController.playPause() }
-                override fun onPause() { PlayerController.playPause() }
-                override fun onSkipToNext() { PlayerController.next() }
-                override fun onSkipToPrevious() { PlayerController.previous() }
-                override fun onStop() { stopEverything() }
-            })
-            isActive = true
-        }
-    }
-
-    /** Pushes the current title/state into the session + re-posts the notification. */
-    private fun updateMediaState(title: String, playing: Boolean) {
-        val session = mediaSession ?: return
-        val shownTitle = title.ifBlank { getString(R.string.bubble_playing) }
-
-        session.setMetadata(
-            MediaMetadataCompat.Builder()
-                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, shownTitle)
-                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, getString(R.string.app_name))
-                .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artwork)
-                .build()
-        )
-        session.setPlaybackState(
-            PlaybackStateCompat.Builder()
-                .setActions(
-                    PlaybackStateCompat.ACTION_PLAY or
-                        PlaybackStateCompat.ACTION_PAUSE or
-                        PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-                        PlaybackStateCompat.ACTION_STOP
-                )
-                .setState(
-                    if (playing) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
-                    PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN,
-                    1f
-                )
-                .build()
-        )
-        runCatching {
-            getSystemService(NotificationManager::class.java)
-                .notify(NOTIFICATION_ID, buildNotification(shownTitle, playing))
-        }
-    }
-
     private fun servicePending(action: String, requestCode: Int): PendingIntent {
         val intent = Intent(this, BackgroundPlaybackService::class.java).setAction(action)
         return PendingIntent.getService(
@@ -457,7 +419,7 @@ class BackgroundPlaybackService : Service() {
             .addAction(R.drawable.ic_close, "Stop", servicePending(ACTION_STOP, 1))
             .setStyle(
                 MediaStyleNotif.MediaStyle()
-                    .setMediaSession(mediaSession?.sessionToken)
+                    .setMediaSession(MediaSessionHolder.sessionToken)
                     .setShowActionsInCompactView(0, 1, 2)
             )
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)

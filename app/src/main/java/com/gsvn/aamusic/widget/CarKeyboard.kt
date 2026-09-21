@@ -26,6 +26,9 @@ class CarKeyboard @JvmOverloads constructor(
     var onBackspace: () -> Unit = {}
     var onSearch: () -> Unit = {}
 
+    /** Tìm bằng giọng nói — cách nhập duy nhất không phải rời mắt khỏi đường. */
+    var onVoice: () -> Unit = {}
+
     private val charRows = listOf(
         "1234567890",
         "qwertyuiop",
@@ -50,6 +53,7 @@ class CarKeyboard @JvmOverloads constructor(
         addView(key(",") { onKey(',') }, keyParams(1f))
         addView(key("space") { onKey(' ') }, keyParams(4f))
         addView(key(".") { onKey('.') }, keyParams(1f))
+        addView(key("Nói") { onVoice() }, keyParams(1.6f))
         addView(key("Tìm") { onSearch() }, keyParams(2f))
     }
 

@@ -18,6 +18,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.view.Display
+import android.view.KeyEvent
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -49,9 +50,7 @@ import com.google.android.material.color.DynamicColors
 import com.gsvn.aamusic.data.SearchHistory
 import com.gsvn.aamusic.data.SearchSuggest
 import com.gsvn.aamusic.databinding.ActivityMainBinding
-import com.gsvn.aamusic.offline.OfflineDownloader
-import com.gsvn.aamusic.offline.OfflinePlayer
-import com.gsvn.aamusic.offline.OfflineStore
+import com.gsvn.aamusic.player.MediaSessionHolder
 import com.gsvn.aamusic.player.PlayerController
 import com.gsvn.aamusic.ui.SettingsSheet
 import com.gsvn.aamusic.web.BrowserCallbacks
@@ -68,12 +67,17 @@ class MainActivity : AppCompatActivity() {
     private var pendingPermissionRequest: PermissionRequest? = null
     private var isBackgroundPlaybackActive: Boolean = false
 
-    // ── Lưu offline ─────────────────────────────────────────────────
-    private val offlineHandler = Handler(Looper.getMainLooper())
-    private val offlineTicker = object : Runnable {
+    // ── Phiên media ─────────────────────────────────────────────────
+    // Khi app đang hiển thị (kể cả trên màn hình xe) thì service nền không
+    // chạy, nên chính activity phải bơm trạng thái vào phiên media — hệ thống
+    // chỉ định tuyến phím vô lăng tới phiên media đang hoạt động.
+    private val mediaHandler = Handler(Looper.getMainLooper())
+    private val mediaStateTicker = object : Runnable {
         override fun run() {
-            tryCaptureOffline()
-            offlineHandler.postDelayed(this, OFFLINE_CHECK_MS)
+            PlayerController.queryState { title, playing ->
+                MediaSessionHolder.update(title.ifBlank { getString(R.string.bubble_playing) }, playing)
+            }
+            mediaHandler.postDelayed(this, MEDIA_STATE_POLL_MS)
         }
     }
 
@@ -100,7 +104,15 @@ class MainActivity : AppCompatActivity() {
 
     private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
-            AudioManager.AUDIOFOCUS_GAIN -> webView?.onResume()
+            // Chỉ đường dẫn của Maps, cuộc gọi… cướp focus làm trang tự dừng;
+            // giành lại được thì phát tiếp, người dùng không phải bấm gì.
+            AudioManager.AUDIOFOCUS_GAIN,
+            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT,
+            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK -> {
+                webView?.onResume()
+                // Trang cần một nhịp để nhả lại luồng audio trước khi play() ăn.
+                mediaHandler.postDelayed({ PlayerController.resume() }, RESUME_AFTER_FOCUS_MS)
+            }
             else -> {
                 // Keep playing — BackgroundPlaybackService keeps the WebView alive
                 // and YouTube Music manages its own volume.
@@ -113,7 +125,6 @@ class MainActivity : AppCompatActivity() {
             if (intent?.action == BackgroundPlaybackService.ACTION_STOP_PLAYBACK) {
                 isBackgroundPlaybackActive = false
                 webView?.onPause()
-                if (OfflinePlayer.isActive) OfflinePlayer.stop()
             }
         }
     }
@@ -138,6 +149,7 @@ class MainActivity : AppCompatActivity() {
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         requestAudioFocus()
+        MediaSessionHolder.ensure(this)
 
         setupWebView()
         setupSearchBar()
@@ -150,10 +162,16 @@ class MainActivity : AppCompatActivity() {
             RECEIVER_NOT_EXPORTED
         )
 
-        // Chạy cả khi app ở nền: bài tự chuyển lúc màn hình tắt vẫn được lưu.
-        offlineHandler.postDelayed(offlineTicker, OFFLINE_CHECK_MS)
-
         handleSearchIntent(intent)
+    }
+
+    /**
+     * Một số head unit gửi phím chuyển bài trên vô lăng thẳng tới cửa sổ đang
+     * hiển thị thay vì qua phiên media. Bắt ở đây trước khi WebView nuốt mất.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (MediaSessionHolder.handleKeyEvent(event)) return true
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -197,9 +215,12 @@ class MainActivity : AppCompatActivity() {
             webView?.onResume()
         }
         updateOverlayButton()
+        mediaHandler.removeCallbacks(mediaStateTicker)
+        mediaHandler.post(mediaStateTicker)
     }
 
     override fun onPause() {
+        mediaHandler.removeCallbacks(mediaStateTicker)
         exitFullscreen()
         isBackgroundPlaybackActive = true
         BackgroundPlaybackService.start(this)
@@ -213,7 +234,8 @@ class MainActivity : AppCompatActivity() {
         abandonAudioFocus()
         runCatching { unregisterReceiver(stopPlaybackReceiver) }
         exitFullscreen()
-        offlineHandler.removeCallbacks(offlineTicker)
+        mediaHandler.removeCallbacksAndMessages(null)
+        MediaSessionHolder.release()
         PlayerController.unregister()
         binding.webView.releaseCompletely()
         webView = null
@@ -246,8 +268,7 @@ class MainActivity : AppCompatActivity() {
                     binding.searchInput.requestFocus()
                     binding.searchInput.post { showKeyboard() }
                 }
-            },
-            onPageFinished = { runOnUiThread { tryCaptureOffline() } }
+            }
         )
 
         webView = binding.webView
@@ -255,28 +276,6 @@ class MainActivity : AppCompatActivity() {
             configureWebView(view, callbacks)
             PlayerController.register(view)
             view.loadUrl(HOME_URL)
-        }
-    }
-
-    // ── Lưu offline ────────────────────────────────────────────────
-
-    /**
-     * Thử lưu bài đang phát. Tự bỏ qua khi công tắc tắt, bài đã có sẵn, hoặc
-     * trang không trả về URL luồng audio (bài dùng signatureCipher).
-     */
-    private fun tryCaptureOffline() {
-        val view = webView ?: return
-        if (!OfflineStore.isEnabled(this)) return
-        OfflineDownloader.captureCurrent(view, this) { result ->
-            val message = when (result) {
-                is OfflineDownloader.Result.Started ->
-                    getString(R.string.offline_saving, result.title)
-                is OfflineDownloader.Result.Saved ->
-                    getString(R.string.offline_saved, result.track.title)
-                is OfflineDownloader.Result.Failed ->
-                    getString(R.string.offline_failed, result.title, result.reason)
-            }
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -348,6 +347,7 @@ class MainActivity : AppCompatActivity() {
         binding.carKeyboard.onSearch = {
             submitSearch(binding.searchInput.text?.toString().orEmpty())
         }
+        binding.carKeyboard.onVoice = { startVoiceSearch() }
         // Keep the system IME from popping (and rendering tiny) on the car screen.
         if (isCarDisplay()) binding.searchInput.showSoftInputOnFocus = false
     }
@@ -570,6 +570,9 @@ class MainActivity : AppCompatActivity() {
         if (!query.isNullOrBlank()) {
             binding.searchInput.setText(query)
             submitSearch(query)
+        } else if (intent.getBooleanExtra(EXTRA_START_VOICE, false)) {
+            // Mở thẳng hộp thoại đọc: đang lái thì không gõ được.
+            startVoiceSearch()
         } else if (intent.getBooleanExtra(EXTRA_FOCUS_SEARCH, false)) {
             showSuggestions()
             binding.searchInput.requestFocus()
@@ -794,8 +797,10 @@ class MainActivity : AppCompatActivity() {
         // playback still runs audio-only in the background as usual.
         private const val HOME_URL = "https://www.youtube.com"
         private const val SEARCH_URL = "https://www.youtube.com/results?search_query="
-        /** Nhịp dò bài đang phát; trang điều hướng kiểu SPA không báo page load. */
-        private const val OFFLINE_CHECK_MS = 20_000L
+
+        /** Nhịp bơm tên bài + trạng thái vào phiên media khi app đang hiển thị. */
+        private const val MEDIA_STATE_POLL_MS = 1_000L
+        private const val RESUME_AFTER_FOCUS_MS = 600L
 
         private const val RC_AUDIO = 1102
         private const val RC_STARTUP_PERMISSIONS = 1103
@@ -803,5 +808,6 @@ class MainActivity : AppCompatActivity() {
         const val ACTION_SEARCH = "com.gsvn.aamusic.action.SEARCH"
         const val EXTRA_QUERY = "com.gsvn.aamusic.extra.QUERY"
         const val EXTRA_FOCUS_SEARCH = "com.gsvn.aamusic.extra.FOCUS_SEARCH"
+        const val EXTRA_START_VOICE = "com.gsvn.aamusic.extra.START_VOICE"
     }
 }
