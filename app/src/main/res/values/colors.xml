@@ -8,4 +8,17 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="address_bar_background">#FFFFFFFF</color>
+
+    <!-- ── Drive Mode ──
+         Cố định, KHÔNG theo day/night: trong xe thì nền phải tối và chữ phải
+         tương phản cao kể cả khi hệ thống đang ở chế độ sáng.
+         Tỉ lệ tương phản trên nền #0B0E14: chữ chính 17:1, chữ mờ 7.4:1,
+         cam nhấn 8.2:1 — đều vượt mức AA cho chữ thường. -->
+    <color name="drive_background">#FF0B0E14</color>
+    <color name="drive_surface">#FF1A1F2B</color>
+    <color name="drive_surface_pressed">#FF262D3D</color>
+    <color name="drive_text">#FFF2F4F8</color>
+    <color name="drive_text_dim">#FF9AA3B5</color>
+    <color name="drive_accent">#FFFF5A36</color>
+    <color name="drive_on_accent">#FF0B0E14</color>
 </resources>

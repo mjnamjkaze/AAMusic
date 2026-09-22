@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nút phát/tạm dừng: khối màu nhấn, to nhất màn hình, nhắm trúng bằng
+     ngoại vi mắt mà không cần nhìn kỹ. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/drive_on_accent">
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="@color/drive_accent" />
+        </shape>
+    </item>
+</ripple>

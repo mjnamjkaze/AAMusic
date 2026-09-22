@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nút tròn phụ của Drive Mode: nền chìm, sáng lên khi chạm. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/drive_surface_pressed">
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="@color/drive_surface" />
+        </shape>
+    </item>
+</ripple>

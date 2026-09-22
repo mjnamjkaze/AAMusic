@@ -1,78 +1,146 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  Cài đặt. Cố tình ngắn: sáu công tắc, một dòng dọn bộ nhớ, một dòng giới thiệu.
+  Mỗi hàng cao 56dp trở lên để chạm được cả khi xe đang chạy.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:paddingBottom="16dp">
+    android:maxHeight="@dimen/menu_max_height">
 
-    <View
-        android:layout_width="36dp"
-        android:layout_height="4dp"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="12dp"
-        android:background="@drawable/drag_handle_background" />
-
-    <!-- ── About ── -->
     <LinearLayout
-        android:id="@+id/aboutRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/selectableItemBackground"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="20dp"
-        android:paddingTop="14dp"
-        android:paddingEnd="20dp"
-        android:paddingBottom="14dp">
+        android:orientation="vertical"
+        android:paddingBottom="16dp">
 
-        <ImageView
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@drawable/bubble_circle_bg"
-            android:contentDescription="@null"
-            android:padding="8dp"
-            android:src="@drawable/ic_music_note"
-            app:tint="#FFFFFFFF" />
+        <View
+            android:layout_width="36dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="6dp"
+            android:background="@drawable/drag_handle_background" />
 
+        <TextView
+            style="@style/DriveSettingsHeader"
+            android:text="@string/settings_section_driving" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchDriveOnStart"
+            style="@style/DriveSettingsSwitch"
+            android:text="@string/settings_drive_on_start" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchResume"
+            style="@style/DriveSettingsSwitch"
+            android:text="@string/settings_resume" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchCarResume"
+            style="@style/DriveSettingsSwitch"
+            android:text="@string/settings_car_resume" />
+
+        <TextView
+            android:id="@+id/defaultPlaylistRow"
+            style="@style/DriveSettingsRow"
+            android:drawablePadding="16dp"
+            app:drawableStartCompat="@drawable/ic_queue" />
+
+        <TextView
+            style="@style/DriveSettingsHeader"
+            android:text="@string/settings_section_playback" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchVoice"
+            style="@style/DriveSettingsSwitch"
+            android:text="@string/settings_voice" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchDataSaver"
+            style="@style/DriveSettingsSwitch"
+            android:text="@string/settings_data_saver" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchForceDark"
+            style="@style/DriveSettingsSwitch"
+            android:text="@string/settings_force_dark" />
+
+        <TextView
+            android:id="@+id/clearDataRow"
+            style="@style/DriveSettingsRow"
+            android:drawablePadding="16dp"
+            android:text="@string/settings_clear_data"
+            app:drawableStartCompat="@drawable/delete_forever_24px" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="4dp"
+            android:background="?attr/colorSurfaceVariant" />
+
+        <!-- ── Giới thiệu ── -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:id="@+id/aboutRow"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="20dp"
+            android:paddingTop="14dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="14dp">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bubble_circle_bg"
+                android:contentDescription="@null"
+                android:padding="8dp"
+                android:src="@drawable/ic_music_note"
+                app:tint="#FFFFFFFF" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/about_org"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/about_tagline"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/about_link"
+                    android:textColor="?attr/colorPrimary"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
             <TextView
-                android:layout_width="match_parent"
+                android:id="@+id/aboutVersion"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/about_org"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/about_tagline"
                 android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="12sp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="@string/about_link"
-                android:textColor="?attr/colorPrimary"
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/aboutVersion"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="12sp" />
     </LinearLayout>
-
-</LinearLayout>
+</ScrollView>

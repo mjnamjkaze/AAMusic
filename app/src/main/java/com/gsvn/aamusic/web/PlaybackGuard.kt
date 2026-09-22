@@ -192,8 +192,10 @@ object PlaybackGuard {
         (function() {
             if (window.__ytaQualityGuard) return;
             window.__ytaQualityGuard = true;
+            if (typeof window.__ytaDataSaver === 'undefined') window.__ytaDataSaver = true;
 
             function apply() {
+                if (!window.__ytaDataSaver) return;
                 var p = document.querySelector('#movie_player, .html5-video-player');
                 if (!p) return;
                 try {
@@ -210,4 +212,16 @@ object PlaybackGuard {
             setInterval(apply, 5000);
         })();
     """.trimIndent()
+
+    /**
+     * Bật/tắt chế độ tiết kiệm dữ liệu trên trang đang mở.
+     *
+     * Không gỡ được vòng lặp của [LOW_QUALITY_JS] sau khi đã chạy, nên nó đọc
+     * cờ `__ytaDataSaver` mỗi vòng; ở đây chỉ việc hạ/nâng cờ. Tắt thì trình
+     * phát tự nâng chất lượng trở lại theo mạng, không cần làm gì thêm.
+     */
+    fun setDataSaver(webView: android.webkit.WebView?, enabled: Boolean) {
+        val view = webView ?: return
+        view.evaluateJavascript("window.__ytaDataSaver=$enabled;", null)
+    }
 }

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bảng thư viện: Hàng chờ · Yêu thích · Vừa nghe · Danh sách.
+  Một bảng cho cả bốn mục thay vì bốn màn hình — đang lái thì mỗi lần điều
+  hướng là một lần rời mắt khỏi đường.
+
+  Hàng được nạp lúc chạy vào [queueList] theo đúng lối MainActivity đang dùng
+  cho ô gợi ý tìm kiếm (inflate item_* rồi addView).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/drive_sheet_bg"
+    android:orientation="vertical"
+    android:paddingBottom="12dp">
+
+    <View
+        android:layout_width="36dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/drag_handle_background" />
+
+    <!-- ── Chọn mục ── -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/queueTabs"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
+
+    <!-- ── Hành động của mục đang xem (xoá hàng chờ / xoá lịch sử) ── -->
+    <TextView
+        android:id="@+id/queueAction"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:background="?attr/selectableItemBackground"
+        android:paddingStart="16dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="6dp"
+        android:textColor="@color/drive_accent"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+    <com.gsvn.aamusic.widget.MaxHeightScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="vertical">
+
+        <LinearLayout
+            android:id="@+id/queueList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="4dp"
+            android:paddingBottom="8dp" />
+    </com.gsvn.aamusic.widget.MaxHeightScrollView>
+
+    <!-- ── Trạng thái rỗng ── -->
+    <TextView
+        android:id="@+id/queueEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingStart="32dp"
+        android:paddingTop="40dp"
+        android:paddingEnd="32dp"
+        android:paddingBottom="44dp"
+        android:textColor="@color/drive_text_dim"
+        android:textSize="15sp"
+        android:visibility="gone" />
+
+</LinearLayout>

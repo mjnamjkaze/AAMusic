@@ -1,27 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Single-color silhouette for themed (monochrome) launcher icons: play
-     triangle beside sound-wave bars, no overlap so the shape stays readable. -->
+<!--
+  Bản một màu cho icon theo chủ đề (themed icon) của Android 13+.
+  Hệ thống tự tô lại toàn bộ, nên ở đây chỉ có hình khối — không chuyển sắc,
+  không phân biệt vành với nốt bằng màu. Vì thế nốt nhạc được tách khỏi vành
+  bằng khoảng hở thay vì bằng màu, và nét vẽ dày hơn bản màu một chút cho rõ.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Vành vô-lăng -->
+    <path
+        android:pathData="M28,54a26,26 0 1,0 52,0a26,26 0 1,0 -52,0"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="7.5"
+        android:strokeLineCap="round" />
+
+    <!-- Nan ngang trái / phải -->
+    <path
+        android:pathData="M31,45 L37,45"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="6"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M71,45 L77,45"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="6"
+        android:strokeLineCap="round" />
+
+    <!-- Nốt nhạc -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M30,42 L30,66 Q30,73 36.1,69.6 L59.6,56.4 Q64,54 59.6,51.6 L36.1,38.4 Q30,35 30,42Z" />
+        android:pathData="M45.5,58m-8,0a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
     <path
-        android:pathData="M70,36 L70,72"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="4.5"
-        android:strokeLineCap="round" />
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M49.5,58 L49.5,36 L55,36 L55,58Z" />
     <path
-        android:pathData="M77,33 L77,75"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="4.5"
-        android:strokeLineCap="round" />
-    <path
-        android:pathData="M84,48 L84,60"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="4.5"
-        android:strokeLineCap="round" />
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M55,36 Q62,38.4 65.2,43.8 Q66.2,45.6 64.4,46.2 Q62.6,46.8 61.6,45.1 Q59.4,41.1 55,39.4Z" />
+
 </vector>

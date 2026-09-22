@@ -3,5 +3,13 @@
     <!-- Landscape Layout Dimensions -->
     <dimen name="menu_max_height">450dp</dimen>
     <dimen name="menu_padding_vertical">16dp</dimen>
+
+    <!-- Drive Mode: màn hình xe thường chỉ cao 480dp, nút phải nhỏ lại một
+         chút cho vừa mà vẫn trên ngưỡng chạm thoải mái. -->
+    <dimen name="drive_play_button">96dp</dimen>
+    <dimen name="drive_side_button">76dp</dimen>
+    <dimen name="drive_small_button">60dp</dimen>
+    <dimen name="drive_title_text">24sp</dimen>
+    <dimen name="drive_subtitle_text">16sp</dimen>
 </resources>
 

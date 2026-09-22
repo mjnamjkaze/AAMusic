@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.os.Bundle
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -29,11 +30,19 @@ object MediaSessionHolder {
     /** Service gán vào để nút "dừng hẳn" tắt luôn phát nhạc nền. */
     var onStopRequested: (() -> Unit)? = null
 
-    private var lastTitle: String = ""
-    private var lastPlaying: Boolean = false
-    // Activity poll không dựng ảnh bìa; giữ lại ảnh service đã đưa để metadata
-    // không mất artwork khi app quay lại foreground.
+    /**
+     * Xử lý yêu cầu phát một mục chọn từ cây duyệt Android Auto.
+     * [com.gsvn.aamusic.car.DriveBrowserService] gán vào.
+     */
+    var onPlayRequest: ((mediaId: String) -> Unit)? = null
+
+    private var lastState: PlayerController.PlaybackState? = null
+    // Ảnh bìa tải bất đồng bộ (ArtworkCache) nên có thể về sau trạng thái; giữ
+    // lại ảnh gần nhất để metadata không mất artwork giữa hai lần cập nhật.
     private var lastArtwork: Bitmap? = null
+    private var lastArtworkId: String = ""
+    // Ảnh thương hiệu, dùng khi chưa tải được ảnh bìa thật của bài.
+    private var fallbackArtwork: Bitmap? = null
 
     val sessionToken: MediaSessionCompat.Token?
         get() = session?.sessionToken
@@ -69,41 +78,84 @@ object MediaSessionHolder {
 
     fun release() {
         onStopRequested = null
+        onPlayRequest = null
         session?.release()
         session = null
-        lastTitle = ""
-        lastPlaying = false
+        lastState = null
         lastArtwork = null
+        lastArtworkId = ""
+        fallbackArtwork = null
+    }
+
+    /** Ảnh thương hiệu dùng khi bài chưa có ảnh bìa; chỉ cần đặt một lần. */
+    fun setFallbackArtwork(bitmap: Bitmap) {
+        fallbackArtwork = bitmap
+        if (lastArtwork == null) lastState?.let { publishMetadata(it) }
     }
 
     /**
-     * Cập nhật tên bài + trạng thái. Bỏ qua nếu không đổi, tránh ghi lại
-     * metadata mỗi giây trong khi vẫn poll đều.
+     * Cập nhật phiên theo [state]. Metadata chỉ ghi lại khi bài đổi, còn
+     * PlaybackState ghi mỗi nhịp để thanh tiến độ trên màn hình khoá /
+     * Android Auto chạy đúng. Ảnh bìa tải nền theo id bài, có là bơm vào ngay.
      *
-     * @return true nếu có thay đổi so với lần cập nhật trước.
+     * @return true nếu bài hoặc trạng thái phát đã đổi so với lần trước.
      */
-    fun update(title: String, playing: Boolean, artwork: Bitmap? = null): Boolean {
-        if (title == lastTitle && playing == lastPlaying) return false
-        lastTitle = title
-        lastPlaying = playing
-        if (artwork != null) lastArtwork = artwork
-        publishMetadata(title, lastArtwork)
-        publishState(playing)
-        return true
+    fun update(state: PlayerController.PlaybackState): Boolean {
+        val previous = lastState
+        lastState = state
+
+        val trackChanged = previous == null ||
+            previous.videoId != state.videoId ||
+            previous.title != state.title ||
+            previous.channel != state.channel ||
+            previous.durationSec != state.durationSec
+
+        if (trackChanged) {
+            publishMetadata(state)
+            requestArtwork(state.videoId)
+        }
+        publishState(state)
+        return trackChanged || previous?.playing != state.playing
     }
 
-    private fun publishMetadata(title: String, artwork: Bitmap?) {
+    /** Tải ảnh bìa của bài và ghi lại metadata khi ảnh về. */
+    private fun requestArtwork(videoId: String) {
+        if (videoId.isBlank() || videoId == lastArtworkId) return
+        lastArtworkId = videoId
+        // Chưa có ảnh mới thì bỏ ảnh của bài cũ đi, đừng để lệch bài.
+        lastArtwork = ArtworkCache.cached(videoId)
+        ArtworkCache.load(videoId) { bitmap ->
+            if (lastArtworkId != videoId) return@load
+            lastArtwork = bitmap
+            lastState?.let { publishMetadata(it) }
+        }
+    }
+
+    private fun publishMetadata(state: PlayerController.PlaybackState) {
         val s = session ?: return
+        val artwork = lastArtwork ?: fallbackArtwork
         val builder = MediaMetadataCompat.Builder()
-            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
-            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, APP_LABEL)
+            .putString(
+                MediaMetadataCompat.METADATA_KEY_TITLE,
+                state.title.ifBlank { APP_LABEL }
+            )
+            .putString(
+                MediaMetadataCompat.METADATA_KEY_ARTIST,
+                state.channel.ifBlank { APP_LABEL }
+            )
+            .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, APP_LABEL)
+            .putLong(
+                MediaMetadataCompat.METADATA_KEY_DURATION,
+                if (state.durationSec > 0) state.durationSec * 1000L else -1L
+            )
         if (artwork != null) {
             builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artwork)
+            builder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, artwork)
         }
         s.setMetadata(builder.build())
     }
 
-    private fun publishState(playing: Boolean) {
+    private fun publishState(state: PlayerController.PlaybackState) {
         val s = session ?: return
         s.setPlaybackState(
             PlaybackStateCompat.Builder()
@@ -113,17 +165,26 @@ object MediaSessionHolder {
                         PlaybackStateCompat.ACTION_PLAY_PAUSE or
                         PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
                         PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                        PlaybackStateCompat.ACTION_SEEK_TO or
+                        PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH or
+                        PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
                         PlaybackStateCompat.ACTION_STOP
                 )
                 .setState(
-                    if (playing) PlaybackStateCompat.STATE_PLAYING
+                    if (state.playing) PlaybackStateCompat.STATE_PLAYING
                     else PlaybackStateCompat.STATE_PAUSED,
-                    PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN,
-                    1f
+                    if (state.durationSec > 0) state.positionSec * 1000L
+                    else PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN,
+                    // Vị trí được bơm lại mỗi giây nên không cần hệ thống nội
+                    // suy; dừng thì để tốc độ 0 cho thanh tiến độ đứng yên.
+                    if (state.playing) 1f else 0f
                 )
                 .build()
         )
     }
+
+    private fun publishState(playing: Boolean) =
+        publishState(PlayerController.PlaybackState(playing = playing))
 
     /**
      * Xử lý phím media đến thẳng cửa sổ activity. Một số head unit gửi phím
@@ -172,6 +233,19 @@ object MediaSessionHolder {
         override fun onPause() = PlayerController.pause()
         override fun onSkipToNext() = PlayerController.next()
         override fun onSkipToPrevious() = PlayerController.previous()
+        override fun onSeekTo(pos: Long) = PlayerController.seekTo((pos / 1000).toInt())
+
+        // "Phát <gì đó> trên DriveTune" — Trợ lý Google / Android Auto.
+        override fun onPlayFromSearch(query: String?, extras: Bundle?) {
+            if (query.isNullOrBlank()) PlayerController.play() else PlayerController.search(query)
+        }
+
+        // Một mục được chọn trong cây duyệt của Android Auto.
+        override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
+            val handler = onPlayRequest
+            if (handler != null && !mediaId.isNullOrBlank()) handler(mediaId)
+            else PlayerController.play()
+        }
         // Không có service nền nào đang chạy thì "dừng hẳn" rút về tạm dừng.
         override fun onStop() {
             val stop = onStopRequested

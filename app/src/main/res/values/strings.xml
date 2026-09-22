@@ -36,4 +36,74 @@
     <string name="bubble_close">Đóng</string>
 
     <string name="overlay_permission_rationale">Cấp quyền \"Hiển thị trên ứng dụng khác\" để dùng bong bóng điều khiển nhạc khi mở bản đồ.</string>
+
+    <!-- ── Drive Mode ── -->
+    <string name="drive_mode_title">DRIVETUNE</string>
+    <string name="drive_mode_open">Chế độ lái</string>
+    <string name="drive_mode_exit">Thoát chế độ lái</string>
+    <string name="drive_nothing_playing">Chưa phát bài nào</string>
+    <string name="drive_unknown_track">Không rõ tên bài</string>
+    <string name="drive_play">Phát</string>
+    <string name="drive_pause">Tạm dừng</string>
+    <string name="drive_favorite">Yêu thích</string>
+    <string name="drive_unfavorite">Bỏ yêu thích</string>
+    <string name="drive_favorite_added">Đã thêm vào Yêu thích</string>
+    <string name="drive_favorite_removed">Đã bỏ khỏi Yêu thích</string>
+    <string name="drive_favorite_unavailable">Chưa có bài nào đang phát</string>
+    <string name="drive_queue">Hàng chờ</string>
+    <string name="drive_volume">Âm lượng</string>
+    <string name="drive_add_to_queue">Thêm vào hàng chờ</string>
+    <string name="drive_queued">Đã thêm vào hàng chờ</string>
+
+    <!-- ── Thư viện ── -->
+    <string name="library_tab_queue">Hàng chờ</string>
+    <string name="library_tab_favorites">Yêu thích</string>
+    <string name="library_tab_recent">Vừa nghe</string>
+    <string name="library_tab_playlists">Danh sách</string>
+    <string name="library_empty_queue">Hàng chờ đang trống.
+Bấm biểu tượng + ở Yêu thích hoặc Vừa nghe để xếp bài.</string>
+    <string name="library_empty_favorites">Chưa có bài yêu thích nào.
+Bấm hình trái tim trong chế độ lái để lưu bài đang nghe.</string>
+    <string name="library_empty_recent">Chưa nghe bài nào.</string>
+    <string name="library_clear_queue">Xoá hàng chờ</string>
+    <string name="library_clear_recent">Xoá lịch sử</string>
+    <string name="library_default_set">Đã đặt làm danh sách mặc định</string>
+    <string name="library_default_cleared">Đã bỏ danh sách mặc định</string>
+
+    <!-- ── Danh sách dựng sẵn ── -->
+    <string name="playlist_favorites">Yêu thích</string>
+    <string name="playlist_morning">Sáng sớm</string>
+    <string name="playlist_night">Đêm khuya</string>
+    <string name="playlist_highway">Đường dài</string>
+    <string name="playlist_city">Trong phố</string>
+    <string name="playlist_chill">Thư giãn</string>
+    <string name="playlist_energy">Sôi động</string>
+    <string name="playlist_rock">Rock</string>
+    <string name="playlist_disco">Disco</string>
+    <string name="playlist_vietnamese">Nhạc Việt</string>
+
+    <!-- ── Nghe tiếp ── -->
+    <string name="resume_question">Nghe tiếp?</string>
+    <string name="resume_continue">Nghe tiếp</string>
+    <string name="resume_start_over">Từ đầu</string>
+
+    <!-- ── Cài đặt ── -->
+    <string name="settings_section_driving">LÁI XE</string>
+    <string name="settings_section_playback">PHÁT NHẠC</string>
+    <string name="settings_drive_on_start">Mở chế độ lái khi khởi động</string>
+    <string name="settings_resume">Hỏi nghe tiếp khi mở lại app</string>
+    <string name="settings_car_resume">Tự phát khi nối với xe</string>
+    <string name="settings_voice">Hiểu lệnh nói</string>
+    <string name="settings_data_saver">Tiết kiệm dữ liệu (chỉ tải tiếng)</string>
+    <string name="settings_force_dark">Luôn dùng nền tối</string>
+    <string name="settings_default_playlist">Danh sách mặc định</string>
+    <string name="settings_default_playlist_none">Chưa đặt</string>
+    <string name="settings_default_playlist_value">Danh sách mặc định: %1$s</string>
+    <string name="settings_default_playlist_hint">Mở Hàng chờ › Danh sách rồi bấm hình ghim để chọn danh sách mặc định.</string>
+    <string name="settings_clear_data">Dọn lịch sử và bộ nhớ đệm</string>
+    <string name="settings_clear_data_done">Đã dọn. Bài yêu thích và phiên đăng nhập được giữ nguyên.</string>
+
+    <!-- ── Lệnh nói ── -->
+    <string name="voice_playing_playlist">Đang mở: %1$s</string>
+    <string name="car_connected_resume">Đã nối với xe — phát tiếp</string>
 </resources>

@@ -21,6 +21,18 @@ data class VideoItem(
 
     val watchUrl: String get() = "https://www.youtube.com/watch?v=$id"
 
+    /**
+     * Bù các trường còn trống bằng dữ liệu của [older].
+     *
+     * Trang mất vài giây mới dựng xong tên kênh / thời lượng, nên bản ghi mới
+     * của cùng một bài có thể nghèo hơn bản đã lưu — đừng để nó ghi đè.
+     */
+    fun mergedWith(older: VideoItem): VideoItem = copy(
+        title = title.ifBlank { older.title },
+        channel = channel.ifBlank { older.channel },
+        duration = duration.ifBlank { older.duration }
+    )
+
     fun toJson(): JSONObject = JSONObject()
         .put("id", id)
         .put("title", title)

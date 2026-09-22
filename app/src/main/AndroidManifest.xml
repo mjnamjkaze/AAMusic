@@ -92,6 +92,19 @@
             android:foregroundServiceType="mediaPlayback"
             android:exported="false" />
 
+        <!-- Cây duyệt cho Android Auto (Yêu thích / Danh sách / Vừa nghe).
+             THÊM VÀO, không thay thế: các intent-filter giả dạng app điều hướng
+             ở MainActivity phía trên vẫn là thứ đưa giao diện điện thoại lên
+             màn hình xe, đừng bỏ. Service này chỉ hoàn tất phần "media" mà
+             automotive_app_desc.xml vốn đã khai báo. -->
+        <service
+            android:name=".car.DriveBrowserService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+
     </application>
 
 </manifest>

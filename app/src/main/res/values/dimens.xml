@@ -18,6 +18,16 @@
     <dimen name="drag_handle_width">40dp</dimen>
     <dimen name="drag_handle_height">4dp</dimen>
 
+    <!-- ── Drive Mode ──
+         Vùng chạm tối thiểu 88dp (gấp đôi mức 48dp thông thường) vì tay chạm
+         khi đang lái thì kém chính xác hơn nhiều. Bản ngang / màn hình lớn ghi
+         đè các giá trị này. -->
+    <dimen name="drive_play_button">116dp</dimen>
+    <dimen name="drive_side_button">88dp</dimen>
+    <dimen name="drive_small_button">64dp</dimen>
+    <dimen name="drive_title_text">26sp</dimen>
+    <dimen name="drive_subtitle_text">17sp</dimen>
+
     <!-- Button Sizes -->
     <dimen name="icon_button_size">48dp</dimen>
     <dimen name="icon_size_small">20dp</dimen>

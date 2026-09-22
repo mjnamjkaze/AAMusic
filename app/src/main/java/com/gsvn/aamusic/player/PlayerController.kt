@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.webkit.WebView
 import com.gsvn.aamusic.MainActivity
+import com.gsvn.aamusic.data.VideoItem
 import org.json.JSONObject
 import org.json.JSONTokener
 import java.lang.ref.WeakReference
@@ -50,15 +51,74 @@ object PlayerController {
     /** Dừng theo ý người dùng: hạ cờ để watchdog không tự phát lại. */
     fun pause() = eval(JS_PAUSE)
 
-    /** Poll current title + playing state; callback runs on the main thread. */
-    fun queryState(callback: (title: String, playing: Boolean) -> Unit) {
-        val wv = webView() ?: run { callback("", false); return }
-        wv.post {
-            wv.evaluateJavascript(JS_STATE) { result ->
-                val (title, playing) = parseState(result)
-                callback(title, playing)
-            }
+    /**
+     * Ảnh chụp trạng thái trình phát tại một thời điểm.
+     *
+     * Toàn bộ trường đều đọc từ bài **đang mở trên màn hình** — cùng nguồn mà
+     * phiên media vẫn cần để hiện tên bài, thanh tiến độ và ảnh bìa.
+     */
+    data class PlaybackState(
+        val title: String = "",
+        val channel: String = "",
+        val videoId: String = "",
+        val playing: Boolean = false,
+        val ended: Boolean = false,
+        val positionSec: Int = 0,
+        val durationSec: Int = 0
+    ) {
+        val hasTrack: Boolean get() = videoId.isNotBlank()
+
+        /** Bản ghi để lưu vào thư viện; null khi trang chưa xác định được bài. */
+        fun toItem(): VideoItem? {
+            if (videoId.isBlank()) return null
+            return VideoItem(
+                id = videoId,
+                title = title,
+                channel = channel,
+                duration = formatTime(durationSec)
+            )
         }
+    }
+
+    /** Poll trạng thái trình phát; callback chạy trên main thread. */
+    fun queryState(callback: (PlaybackState) -> Unit) {
+        val wv = webView() ?: run { callback(PlaybackState()); return }
+        wv.post {
+            wv.evaluateJavascript(JS_STATE) { result -> callback(parseState(result)) }
+        }
+    }
+
+    /** Tua tới giây [sec] của bài đang phát. */
+    fun seekTo(sec: Int) {
+        if (sec <= 0) return
+        eval("(function(){var v=" + V + ";if(v){try{v.currentTime=" + sec + ";}catch(e){}}})()")
+    }
+
+    /**
+     * Mở [url] trong WebView. App bị hệ thống thu hồi mất WebView (chỉ còn
+     * service sống) thì đưa activity lên trước kèm địa chỉ cần mở.
+     */
+    fun load(url: String) {
+        if (url.isBlank()) return
+        val wv = webView()
+        if (wv != null) {
+            wv.post { wv.loadUrl(url) }
+            return
+        }
+        launchActivity {
+            it.action = MainActivity.ACTION_SEARCH
+            it.putExtra(MainActivity.EXTRA_URL, url)
+        }
+    }
+
+    /** "3:07" / "1:02:33" — dùng chung cho nhãn thời lượng khắp app. */
+    fun formatTime(sec: Int): String {
+        if (sec <= 0) return ""
+        val h = sec / 3600
+        val m = (sec % 3600) / 60
+        val s = sec % 60
+        return if (h > 0) String.format("%d:%02d:%02d", h, m, s)
+        else String.format("%d:%02d", m, s)
     }
 
     /** Bring the app to the front focused on the search field (no query yet). */
@@ -100,16 +160,24 @@ object PlayerController {
         wv.post { wv.evaluateJavascript(js, null) }
     }
 
-    private fun parseState(result: String?): Pair<String, Boolean> {
-        if (result.isNullOrBlank() || result == "null") return "" to false
+    private fun parseState(result: String?): PlaybackState {
+        if (result.isNullOrBlank() || result == "null") return PlaybackState()
         return try {
             // evaluateJavascript returns the JS value JSON-encoded: a quoted,
             // escaped string. Decode once to get the inner JSON, then parse.
-            val inner = JSONTokener(result).nextValue() as? String ?: return "" to false
+            val inner = JSONTokener(result).nextValue() as? String ?: return PlaybackState()
             val obj = JSONObject(inner)
-            obj.optString("t") to obj.optBoolean("p")
+            PlaybackState(
+                title = obj.optString("t"),
+                channel = obj.optString("c"),
+                videoId = obj.optString("i"),
+                playing = obj.optBoolean("p"),
+                ended = obj.optBoolean("e"),
+                positionSec = obj.optInt("cu"),
+                durationSec = obj.optInt("d")
+            )
         } catch (_: Exception) {
-            "" to false
+            PlaybackState()
         }
     }
 
@@ -124,7 +192,7 @@ object PlayerController {
     private const val V =
         "(window.__ytaMainVideo?window.__ytaMainVideo():document.querySelector('video'))"
     private const val JS_PLAY_PAUSE =
-        "(function(){var v=${'$'}V;" +
+        "(function(){var v=" + V + ";" +
             "window.__ytaWantPlay=v?v.paused:true;" +
             "var b=document.querySelector('ytmusic-player-bar #play-pause-button, " +
             "#play-pause-button, .ytp-play-button, tp-yt-paper-icon-button.play-pause-button');" +
@@ -135,18 +203,18 @@ object PlayerController {
     private const val JS_RESUME =
         "(function(){if(window.__ytaWantPlay===false)return;" +
             "window.__ytaWantPlay=true;" +
-            "var v=${'$'}V;" +
+            "var v=" + V + ";" +
             "if(v&&v.paused){var p=v.play();if(p&&p.catch)p.catch(function(){});}})()"
 
     // Cờ __ytaWantPlay được bật lại để watchdog của PlaybackGuard tiếp tục canh.
     private const val JS_FORCE_PLAY =
         "(function(){window.__ytaWantPlay=true;" +
-            "var v=${'$'}V;" +
+            "var v=" + V + ";" +
             "if(v&&v.paused){var p=v.play();if(p&&p.catch)p.catch(function(){});}})()"
 
     private const val JS_PAUSE =
         "(function(){window.__ytaWantPlay=false;" +
-            "var v=${'$'}V;if(v&&!v.paused)v.pause();})()"
+            "var v=" + V + ";if(v&&!v.paused)v.pause();})()"
 
     private const val JS_NEXT =
         "(function(){var b=document.querySelector('ytmusic-player-bar .next-button, " +
@@ -157,16 +225,54 @@ object PlayerController {
     private const val JS_PREV =
         "(function(){var b=document.querySelector('ytmusic-player-bar .previous-button, " +
             ".previous-button, .ytp-prev-button, tp-yt-paper-icon-button.previous-button');" +
-            "if(b){b.click();return;}var v=${'$'}V;" +
+            "if(b){b.click();return;}var v=" + V + ";" +
             "if(v&&v.currentTime>3){v.currentTime=0;return;}document.dispatchEvent(" +
             "new KeyboardEvent('keydown',{key:'P',keyCode:80,which:80,shiftKey:true,bubbles:true}));})()"
 
-    private const val JS_STATE =
-        "(function(){var t='';var el=document.querySelector('ytmusic-player-bar .title');" +
-            "if(el)t=(el.textContent||'').trim();" +
-            "if(!t){var h=document.querySelector('h1.ytd-watch-metadata, .ytp-title-link');" +
-            "if(h)t=(h.textContent||'').trim();}" +
-            "if(!t)t=(document.title||'').replace(/\\s*-\\s*YouTube.*$/,'').trim();" +
-            "var v=${'$'}V;var p=v?!v.paused:false;" +
-            "return JSON.stringify({t:t,p:p});})()"
+    /**
+     * Ngoài tên bài + trạng thái, trả thêm id/kênh/vị trí/thời lượng: phiên
+     * media cần chúng để hiện ảnh bìa và thanh tiến độ, còn app dùng để lưu dấu
+     * trang và điểm "nghe tiếp". Tất cả đều là dữ liệu của chính bài đang mở
+     * trên màn hình, không dò thêm gì trong trang.
+     *
+     * Viết bằng chuỗi thô (như [com.gsvn.aamusic.web.PlaybackGuard]) vì có biểu
+     * thức chính quy: nối chuỗi thường thì mỗi dấu `\` phải nhân đôi, rất dễ sai
+     * mà chỉ lộ ra lúc chạy. Trong chuỗi thô, `$V` được nội suy thành hằng [V].
+     */
+    private val JS_STATE = """
+        (function() {
+            function txt(s) {
+                var e = document.querySelector(s);
+                return e ? (e.textContent || '').trim() : '';
+            }
+
+            var t = txt('ytmusic-player-bar .title');
+            if (!t) t = txt('h1.ytd-watch-metadata, .ytp-title-link, ' +
+                            'ytm-slim-video-information-renderer h2');
+            if (!t) t = (document.title || '').replace(/\s*-\s*YouTube.*$/, '').trim();
+
+            var c = txt('ytmusic-player-bar .byline a');
+            if (!c) c = txt('ytm-slim-owner-renderer a, #owner #channel-name a, ' +
+                            '#upload-info #channel-name a, .ytp-title-expanded-title');
+
+            var i = '';
+            try {
+                i = new URL(location.href).searchParams.get('v') || '';
+                if (!i) {
+                    var m = location.href.match(
+                        /(?:youtu\.be\/|shorts\/|embed\/)([\w-]{11})/);
+                    if (m) i = m[1];
+                }
+            } catch (e) {}
+
+            var v = $V;
+            return JSON.stringify({
+                t: t, c: c, i: i,
+                p: v ? !v.paused : false,
+                e: v ? !!v.ended : false,
+                cu: v ? Math.floor(v.currentTime || 0) : 0,
+                d: (v && isFinite(v.duration)) ? Math.floor(v.duration) : 0
+            });
+        })();
+    """.trimIndent()
 }

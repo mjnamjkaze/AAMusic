@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Drive Mode — lớp phủ toàn màn hình của MainActivity (không phải activity
+  riêng: giữ nguyên WebView đang phát ở phía dưới, bật/tắt chỉ là đổi
+  visibility, không có điều hướng nào phát sinh).
+
+  Màu cố định, không theo theme: trong xe phải tối và tương phản cao dù hệ
+  thống đang để chế độ sáng. Kích thước nút lấy từ dimens.xml (drive_*) nên bản
+  ngang và bản màn hình lớn chỉnh một chỗ.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/driveRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/drive_background"
+    android:orientation="vertical"
+    android:visibility="gone"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- ── Thanh trên: nhãn + thoát ── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="4dp">
+
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_drive_mode"
+            app:tint="@color/drive_accent" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:letterSpacing="0.06"
+            android:text="@string/drive_mode_title"
+            android:textColor="@color/drive_text_dim"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/driveExit"
+            android:layout_width="@dimen/drive_small_button"
+            android:layout_height="@dimen/drive_small_button"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/drive_mode_exit"
+            android:padding="14dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_drive_exit"
+            app:tint="@color/drive_text_dim" />
+    </LinearLayout>
+
+    <!-- ── Ảnh bìa ── -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingStart="24dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="8dp">
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            app:cardBackgroundColor="@color/drive_surface"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp">
+
+            <ImageView
+                android:id="@+id/driveArtwork"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:adjustViewBounds="true"
+                android:contentDescription="@null"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_music_note"
+                app:tint="@color/drive_text_dim" />
+        </com.google.android.material.card.MaterialCardView>
+    </FrameLayout>
+
+    <!-- ── Tên bài + kênh ── -->
+    <TextView
+        android:id="@+id/driveTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:ellipsize="end"
+        android:gravity="center_horizontal"
+        android:maxLines="2"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:text="@string/drive_nothing_playing"
+        android:textColor="@color/drive_text"
+        android:textSize="@dimen/drive_title_text"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/driveChannel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:gravity="center_horizontal"
+        android:maxLines="1"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:textColor="@color/drive_text_dim"
+        android:textSize="@dimen/drive_subtitle_text" />
+
+    <!-- ── Tiến độ: chỉ để đọc, không phải chỗ để ngắm nghía lúc lái ── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="28dp"
+        android:paddingEnd="28dp">
+
+        <TextView
+            android:id="@+id/drivePosition"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="44dp"
+            android:textColor="@color/drive_text_dim"
+            android:textSize="13sp" />
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/driveProgress"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:layout_weight="1"
+            app:indicatorColor="@color/drive_accent"
+            app:trackColor="@color/drive_surface"
+            app:trackCornerRadius="3dp"
+            app:trackThickness="6dp" />
+
+        <TextView
+            android:id="@+id/driveDuration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:minWidth="44dp"
+            android:textColor="@color/drive_text_dim"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <!-- ── Hàng điều khiển chính ── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/drivePrev"
+            android:layout_width="@dimen/drive_side_button"
+            android:layout_height="@dimen/drive_side_button"
+            android:background="@drawable/drive_button_bg"
+            android:contentDescription="@string/bubble_prev"
+            android:padding="18dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_skip_previous"
+            app:tint="@color/drive_text" />
+
+        <ImageButton
+            android:id="@+id/drivePlayPause"
+            android:layout_width="@dimen/drive_play_button"
+            android:layout_height="@dimen/drive_play_button"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp"
+            android:background="@drawable/drive_play_bg"
+            android:contentDescription="@string/bubble_play_pause"
+            android:padding="24dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_play"
+            app:tint="@color/drive_on_accent" />
+
+        <ImageButton
+            android:id="@+id/driveNext"
+            android:layout_width="@dimen/drive_side_button"
+            android:layout_height="@dimen/drive_side_button"
+            android:background="@drawable/drive_button_bg"
+            android:contentDescription="@string/bubble_next"
+            android:padding="18dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_skip_next"
+            app:tint="@color/drive_text" />
+    </LinearLayout>
+
+    <!-- ── Hàng phụ: yêu thích · hàng chờ · âm lượng ── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:layout_marginBottom="18dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/driveFavorite"
+            android:layout_width="@dimen/drive_small_button"
+            android:layout_height="@dimen/drive_small_button"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="14dp"
+            android:background="@drawable/drive_button_bg"
+            android:contentDescription="@string/drive_favorite"
+            android:padding="16dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/favorite_24px"
+            app:tint="@color/drive_text" />
+
+        <ImageButton
+            android:id="@+id/driveQueue"
+            android:layout_width="@dimen/drive_small_button"
+            android:layout_height="@dimen/drive_small_button"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="14dp"
+            android:background="@drawable/drive_button_bg"
+            android:contentDescription="@string/drive_queue"
+            android:padding="16dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_queue"
+            app:tint="@color/drive_text" />
+
+        <ImageButton
+            android:id="@+id/driveVolume"
+            android:layout_width="@dimen/drive_small_button"
+            android:layout_height="@dimen/drive_small_button"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="14dp"
+            android:background="@drawable/drive_button_bg"
+            android:contentDescription="@string/drive_volume"
+            android:padding="16dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_volume"
+            app:tint="@color/drive_text" />
+    </LinearLayout>
+
+</LinearLayout>

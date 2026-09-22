@@ -1,11 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Dark navy brand background (matches the YT Music logo). -->
+<!--
+  Nền icon: xanh đêm chuyển sắc theo đường chéo, thêm một quầng cam rất mờ ở
+  góc trên-trái để nền không bị "chết" phẳng và làm vành vô-lăng ở lớp trên nổi
+  khối hơn.
+
+  Nền phải phủ kín 108x108 (không chỉ vùng an toàn) vì launcher có thể phóng to
+  và cắt theo nhiều hình dạng khác nhau.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#FF0F1523"
-        android:pathData="M0,0h108v108h-108z" />
+
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="0"
+                android:endX="108"
+                android:endY="108">
+                <item android:offset="0" android:color="#FF1E2947" />
+                <item android:offset="0.55" android:color="#FF121829" />
+                <item android:offset="1" android:color="#FF080B14" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Quầng sáng cam, alpha thấp: chỉ đủ để cảm nhận, không thành vệt bẩn. -->
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="30"
+                android:centerY="24"
+                android:gradientRadius="74">
+                <item android:offset="0" android:color="#3DFF6A3D" />
+                <item android:offset="0.6" android:color="#14FF6A3D" />
+                <item android:offset="1" android:color="#00FF6A3D" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
 </vector>

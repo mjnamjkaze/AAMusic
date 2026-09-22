@@ -28,6 +28,7 @@ import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.media.app.NotificationCompat as MediaStyleNotif
+import com.gsvn.aamusic.player.ArtworkCache
 import com.gsvn.aamusic.player.MediaSessionHolder
 import com.gsvn.aamusic.player.PlayerController
 import kotlin.math.abs
@@ -69,6 +70,7 @@ class BackgroundPlaybackService : Service() {
     // của service thì chưa — nên dò trùng riêng, đừng dùng chung với phiên.
     private var lastNotifTitle: String? = null
     private var lastNotifPlaying: Boolean? = null
+    private var lastNotifVideoId: String? = null
 
     private val handler = Handler(Looper.getMainLooper())
     private var polling = false
@@ -76,20 +78,25 @@ class BackgroundPlaybackService : Service() {
     private val statedPoll = object : Runnable {
         override fun run() {
             if (!polling) return
-            PlayerController.queryState { title, playing ->
-                val shownTitle = title.ifBlank { getString(R.string.bubble_playing) }
+            PlayerController.queryState { state ->
+                val shownTitle = state.title.ifBlank { getString(R.string.bubble_playing) }
                 titleView?.text = shownTitle
                 playPauseBtn?.setImageResource(
-                    if (playing) R.drawable.ic_pause else R.drawable.ic_play
+                    if (state.playing) R.drawable.ic_pause else R.drawable.ic_play
                 )
-                MediaSessionHolder.update(shownTitle, playing, artwork)
+                MediaSessionHolder.update(state)
 
-                if (shownTitle != lastNotifTitle || playing != lastNotifPlaying) {
+                if (shownTitle != lastNotifTitle || state.playing != lastNotifPlaying ||
+                    state.videoId != lastNotifVideoId
+                ) {
                     lastNotifTitle = shownTitle
-                    lastNotifPlaying = playing
-                    runCatching {
-                        getSystemService(NotificationManager::class.java)
-                            .notify(NOTIFICATION_ID, buildNotification(shownTitle, playing))
+                    lastNotifPlaying = state.playing
+                    lastNotifVideoId = state.videoId
+                    notify(shownTitle, state)
+                    // Ảnh bìa về sau một nhịp thì dựng lại notification để
+                    // thumbnail thật thay chỗ ảnh thương hiệu.
+                    ArtworkCache.load(state.videoId) {
+                        if (lastNotifVideoId == state.videoId) notify(shownTitle, state)
                     }
                 }
             }
@@ -97,10 +104,19 @@ class BackgroundPlaybackService : Service() {
         }
     }
 
+    private fun notify(title: String, state: PlayerController.PlaybackState) {
+        runCatching {
+            getSystemService(NotificationManager::class.java)
+                .notify(NOTIFICATION_ID, buildNotification(title, state))
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        ArtworkCache.attach(this)
         MediaSessionHolder.ensure(this)
+        MediaSessionHolder.setFallbackArtwork(artwork)
         MediaSessionHolder.onStopRequested = { stopEverything() }
         acquireWakeLock()
     }
@@ -126,6 +142,7 @@ class BackgroundPlaybackService : Service() {
         removeBubble()
         lastNotifTitle = null
         lastNotifPlaying = null
+        lastNotifVideoId = null
         MediaSessionHolder.onStopRequested = null
         releaseWakeLock()
         super.onDestroy()
@@ -371,16 +388,27 @@ class BackgroundPlaybackService : Service() {
         )
     }
 
-    /** Renders the brand mark (red play + sound waves on dark navy) as album art. */
+    /**
+     * Dựng ảnh bìa dự phòng từ chính icon của app (vô-lăng + nốt nhạc), dùng
+     * khi bài chưa tải được thumbnail thật.
+     *
+     * Vẽ cả lớp nền lẫn lớp hình của adaptive icon để ảnh trong notification
+     * trùng khớp với icon ngoài màn hình chính.
+     */
     private fun buildArtwork(): Bitmap {
         val size = 256
         val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
-        canvas.drawColor(0xFF0F1523.toInt())
+        // Màu nền đáy, phòng khi lớp nền vector không nạp được.
+        canvas.drawColor(0xFF121829.toInt())
+        ContextCompat.getDrawable(this, R.drawable.ic_launcher_background)?.let { d ->
+            d.setBounds(0, 0, size, size)
+            d.draw(canvas)
+        }
         ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground)?.let { d ->
-            // The launcher foreground keeps its art inside the adaptive-icon safe
-            // zone; overdraw the bounds so the mark fills the artwork nicely.
-            val over = (size * 0.35f).toInt()
+            // Lớp hình của adaptive icon nằm gọn trong vùng an toàn; vẽ tràn ra
+            // ngoài một chút cho dấu hiệu lấp đầy khung ảnh bìa.
+            val over = (size * 0.18f).toInt()
             d.setBounds(-over, -over, size + over, size + over)
             d.draw(canvas)
         }
@@ -389,8 +417,11 @@ class BackgroundPlaybackService : Service() {
 
     private fun buildNotification(
         title: String = getString(R.string.bubble_playing),
-        playing: Boolean = false
+        state: PlayerController.PlaybackState = PlayerController.PlaybackState()
     ): Notification {
+        val playing = state.playing
+        // Ảnh bìa thật của bài nếu đã tải xong, không thì ảnh thương hiệu.
+        val largeIcon = ArtworkCache.cached(state.videoId) ?: artwork
         val openIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -403,8 +434,8 @@ class BackgroundPlaybackService : Service() {
             .setSmallIcon(R.drawable.ic_music_note)
             .setColor(0xFFE60000.toInt())
             .setContentTitle(title)
-            .setContentText(getString(R.string.app_name))
-            .setLargeIcon(artwork)
+            .setContentText(state.channel.ifBlank { getString(R.string.app_name) })
+            .setLargeIcon(largeIcon)
             .setContentIntent(openPending)
             .setDeleteIntent(servicePending(ACTION_STOP, 1))
             .setOngoing(true)

@@ -46,15 +46,28 @@ import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.appcompat.app.AppCompatDelegate
 import com.google.android.material.color.DynamicColors
+import com.gsvn.aamusic.car.CarConnection
+import com.gsvn.aamusic.data.DriveLibrary
+import com.gsvn.aamusic.data.DrivePlaylist
+import com.gsvn.aamusic.data.DrivePlaylists
+import com.gsvn.aamusic.data.DriveSettings
 import com.gsvn.aamusic.data.SearchHistory
 import com.gsvn.aamusic.data.SearchSuggest
+import com.gsvn.aamusic.data.VideoItem
 import com.gsvn.aamusic.databinding.ActivityMainBinding
+import com.gsvn.aamusic.player.ArtworkCache
 import com.gsvn.aamusic.player.MediaSessionHolder
 import com.gsvn.aamusic.player.PlayerController
+import com.gsvn.aamusic.ui.DriveMode
+import com.gsvn.aamusic.ui.LibrarySheet
+import com.gsvn.aamusic.ui.ResumeSheet
 import com.gsvn.aamusic.ui.SettingsSheet
+import com.gsvn.aamusic.voice.VoiceCommands
 import com.gsvn.aamusic.web.BrowserCallbacks
 import com.gsvn.aamusic.web.configureWebView
+import com.gsvn.aamusic.web.PlaybackGuard
 import com.gsvn.aamusic.web.releaseCompletely
 
 class MainActivity : AppCompatActivity() {
@@ -74,12 +87,27 @@ class MainActivity : AppCompatActivity() {
     private val mediaHandler = Handler(Looper.getMainLooper())
     private val mediaStateTicker = object : Runnable {
         override fun run() {
-            PlayerController.queryState { title, playing ->
-                MediaSessionHolder.update(title.ifBlank { getString(R.string.bubble_playing) }, playing)
-            }
+            PlayerController.queryState { state -> onPlaybackState(state) }
             mediaHandler.postDelayed(this, MEDIA_STATE_POLL_MS)
         }
     }
+
+    // ── Chế độ lái + thư viện ───────────────────────────────────────
+    private var driveMode: DriveMode? = null
+    private lateinit var carConnection: CarConnection
+
+    /** Bài đã ghi vào "Vừa nghe"; tránh ghi lại prefs mỗi nhịp poll. */
+    private var notedTrackId: String = ""
+    private var notedTrackTitle: String = ""
+    /** Bài đã dùng để lấy bài kế trong hàng chờ — mỗi bài chỉ chuyển một lần. */
+    private var advancedFromTrackId: String = ""
+    private var lastResumeSaveMs: Long = 0L
+    /**
+     * Người dùng mở một danh sách từ Chế độ lái: phải rời Chế độ lái để chọn
+     * bài trong trang kết quả, nên hễ bài mới bắt đầu phát là đưa họ trở lại.
+     */
+    private var returnToDriveMode: Boolean = false
+    private var leftDriveModeAtTrackId: String = ""
 
     // ── Live YouTube search suggestions ─────────────────────────────
     private var suggestJob: kotlinx.coroutines.Job? = null
@@ -94,7 +122,7 @@ class MainActivity : AppCompatActivity() {
             ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
             ?.firstOrNull()
         if (result.resultCode == RESULT_OK && !text.isNullOrBlank()) {
-            submitSearch(text)
+            handleVoiceResult(text)
         }
     }
 
@@ -130,6 +158,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Phải đặt trước khi dựng view, nếu không theme áp muộn sẽ nháy màu.
+        applyNightMode()
         super.onCreate(savedInstanceState)
         DynamicColors.applyToActivityIfAvailable(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -149,10 +179,12 @@ class MainActivity : AppCompatActivity() {
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         requestAudioFocus()
+        ArtworkCache.attach(this)
         MediaSessionHolder.ensure(this)
 
         setupWebView()
         setupSearchBar()
+        setupDriveMode()
         setupBackPressHandling()
         ensureStartupPermissions()
         maybeRequestOverlayPermission()
@@ -162,7 +194,193 @@ class MainActivity : AppCompatActivity() {
             RECEIVER_NOT_EXPORTED
         )
 
+        carConnection = CarConnection(this).apply {
+            onCarConnected = {
+                Toast.makeText(
+                    this@MainActivity, R.string.car_connected_resume, Toast.LENGTH_SHORT
+                ).show()
+            }
+            register()
+        }
+
+        // handleSearchIntent() nuốt luôn action sau khi xử lý, nên phải xem
+        // trước: app được mở kèm yêu cầu phát nhạc thì đừng chen bảng "nghe tiếp".
+        val launchedWithRequest = intent?.action == ACTION_SEARCH
         handleSearchIntent(intent)
+        // Chỉ hỏi ở lần mở mới, không hỏi lại sau khi xoay máy.
+        if (savedInstanceState == null && !launchedWithRequest) {
+            maybeOfferResume()
+        }
+    }
+
+    // ── Chế độ lái ─────────────────────────────────────────────────
+
+    private fun setupDriveMode() {
+        val root = binding.root.findViewById<View>(R.id.driveRoot) ?: return
+        driveMode = DriveMode(this, root, onOpenLibrary = { showLibrary() })
+        binding.driveModeButton.setOnClickListener { enterDriveMode() }
+        if (DriveSettings.isOn(this, DriveSettings.KEY_DRIVE_ON_START)) enterDriveMode()
+    }
+
+    /**
+     * Activity khai báo `configChanges` cho cả orientation (để xoay máy không
+     * nạp lại trang web), nên hệ thống KHÔNG tự lấy lại layout theo hướng mới.
+     * Lớp phủ Chế độ lái có bản riêng cho màn hình ngang — chính là hình dạng
+     * màn hình xe — nên phải tự dựng lại nó ở đây, nếu không bản ngang sẽ chẳng
+     * bao giờ được dùng trên điện thoại.
+     *
+     * Chỉ thay đúng lớp phủ; WebView bên dưới không bị đụng tới nên nhạc vẫn chạy.
+     */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        rebuildDriveMode()
+    }
+
+    private fun rebuildDriveMode() {
+        val parent = binding.root as? ViewGroup ?: return
+        val old = parent.findViewById<View>(R.id.driveRoot) ?: return
+        val wasVisible = driveMode?.isVisible == true
+
+        parent.removeView(old)
+        val fresh = layoutInflater.inflate(R.layout.view_drive_mode, parent, false)
+        parent.addView(fresh)
+
+        driveMode = DriveMode(this, fresh, onOpenLibrary = { showLibrary() })
+        if (wasVisible) {
+            driveMode?.show()
+            PlayerController.queryState { state -> driveMode?.render(state) }
+        }
+    }
+
+    /**
+     * Mở Chế độ lái. Chưa có gì đang phát mà người dùng đã đặt danh sách mặc
+     * định thì mở luôn danh sách đó — vào xe là có nhạc, không phải tìm.
+     */
+    private fun enterDriveMode() {
+        val mode = driveMode ?: return
+        mode.show()
+        PlayerController.queryState { state ->
+            // Vẽ ngay, đừng để màn hình trống tới nhịp poll kế tiếp.
+            mode.render(state)
+            if (state.hasTrack) return@queryState
+            val playlist = DrivePlaylists.byId(DriveSettings.defaultPlaylist(this))
+                ?: return@queryState
+            openPlaylist(playlist)
+        }
+    }
+
+    private fun showLibrary() {
+        val sheet = LibrarySheet(
+            this,
+            onPlay = { item -> playTrack(item) },
+            onPlaylist = { playlist -> openPlaylist(playlist) }
+        )
+        sheet.onLibraryChanged = { driveMode?.refreshFavorite() }
+        sheet.show()
+    }
+
+    private fun playTrack(item: VideoItem) {
+        PlayerController.load(item.watchUrl)
+    }
+
+    /**
+     * Mở một danh sách dựng sẵn.
+     *
+     * "Yêu thích" là danh sách nội bộ nên phát được ngay. Các danh sách còn lại
+     * là một tìm kiếm trên YouTube: phải rời Chế độ lái để người dùng chọn bài,
+     * rồi tự quay lại ngay khi bài mới bắt đầu phát.
+     */
+    private fun openPlaylist(playlist: DrivePlaylist) {
+        if (playlist.isLocal) {
+            val favorites = DriveLibrary.favorites(this)
+            val first = favorites.firstOrNull()
+            if (first == null) {
+                Toast.makeText(this, R.string.library_empty_favorites, Toast.LENGTH_LONG).show()
+                return
+            }
+            DriveLibrary.replaceQueue(this, favorites.drop(1))
+            playTrack(first)
+            return
+        }
+
+        Toast.makeText(
+            this,
+            getString(R.string.voice_playing_playlist, getString(playlist.nameRes)),
+            Toast.LENGTH_SHORT
+        ).show()
+        returnToDriveMode = driveMode?.isVisible == true
+        leftDriveModeAtTrackId = notedTrackId
+        driveMode?.hide()
+        webView?.loadUrl(playlist.searchUrl)
+    }
+
+    private fun maybeOfferResume() {
+        if (!DriveSettings.isOn(this, DriveSettings.KEY_RESUME)) return
+        ResumeSheet(this).showIfAvailable { url, startSec ->
+            // YouTube hiểu tham số `t` ngay trên URL, khỏi phải canh lúc trang
+            // dựng xong trình phát rồi mới tua.
+            val target = if (startSec > 0) "$url&t=${startSec}s" else url
+            webView?.loadUrl(target)
+        }
+    }
+
+    // ── Nhịp trạng thái ────────────────────────────────────────────
+
+    /**
+     * Một nhịp poll: bơm vào phiên media, vẽ lại Chế độ lái, ghi nhật ký nghe,
+     * lưu điểm nghe tiếp và chuyển bài kế trong hàng chờ khi hết bài.
+     */
+    private fun onPlaybackState(state: PlayerController.PlaybackState) {
+        MediaSessionHolder.update(state)
+        driveMode?.render(state)
+
+        if (!state.hasTrack) return
+
+        if (state.videoId != notedTrackId) {
+            notedTrackId = state.videoId
+            notedTrackTitle = ""
+            advancedFromTrackId = ""
+        }
+
+        // Bài khác đã thật sự chạy: đưa người dùng trở lại Chế độ lái nếu họ
+        // vừa rời nó chỉ để chọn bài trong một danh sách. Kiểm tra tách khỏi
+        // nhánh "vừa đổi bài" ở trên: nhịp đầu của bài mới thường còn đang tạm
+        // dừng, chờ đúng nhịp đó thì không bao giờ quay lại được.
+        if (returnToDriveMode && state.playing && state.videoId != leftDriveModeAtTrackId) {
+            returnToDriveMode = false
+            driveMode?.show()
+            driveMode?.render(state)
+        }
+        // Trang mất vài giây mới dựng xong tên bài, nên ghi lại khi tên có.
+        if (state.title.isNotBlank() && state.title != notedTrackTitle) {
+            notedTrackTitle = state.title
+            state.toItem()?.let { DriveLibrary.notePlayed(this, it) }
+        }
+
+        saveResumePoint(state)
+        advanceQueueIfEnded(state)
+    }
+
+    private fun saveResumePoint(state: PlayerController.PlaybackState) {
+        if (!state.playing || state.positionSec <= 0) return
+        val now = System.currentTimeMillis()
+        if (now - lastResumeSaveMs < RESUME_SAVE_INTERVAL_MS) return
+        lastResumeSaveMs = now
+        state.toItem()?.let { DriveLibrary.saveResume(this, it, state.positionSec) }
+    }
+
+    /**
+     * Hết bài thì lấy bài kế trong hàng chờ của app.
+     *
+     * Hàng chờ rỗng thì **không can thiệp gì** — YouTube tự chạy bài tiếp theo
+     * như từ trước tới nay.
+     */
+    private fun advanceQueueIfEnded(state: PlayerController.PlaybackState) {
+        if (!state.ended) return
+        if (state.videoId == advancedFromTrackId) return
+        val next = DriveLibrary.popQueue(this) ?: return
+        advancedFromTrackId = state.videoId
+        playTrack(next)
     }
 
     /**
@@ -229,6 +447,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        if (::carConnection.isInitialized) carConnection.unregister()
         BackgroundPlaybackService.stop(this)
         isBackgroundPlaybackActive = false
         abandonAudioFocus()
@@ -268,7 +487,10 @@ class MainActivity : AppCompatActivity() {
                     binding.searchInput.requestFocus()
                     binding.searchInput.post { showKeyboard() }
                 }
-            }
+            },
+            // Trang vừa nạp xong đã có script ép chất lượng; đồng bộ lại cờ
+            // theo tuỳ chọn hiện tại của người dùng.
+            onPageFinished = { runOnUiThread { applyDataSaver() } }
         )
 
         webView = binding.webView
@@ -305,7 +527,9 @@ class MainActivity : AppCompatActivity() {
         }
         binding.overlayButton.setOnClickListener { openOverlaySettings() }
         binding.headerLogo.contentDescription = getString(R.string.settings_open)
-        binding.headerLogo.setOnClickListener { SettingsSheet(this).show() }
+        binding.headerLogo.setOnClickListener {
+            SettingsSheet(this) { key -> onSettingChanged(key) }.show()
+        }
         binding.micButton.setOnClickListener { startVoiceSearch() }
         binding.searchInput.doAfterTextChanged { text ->
             binding.clearButton.visibility =
@@ -325,6 +549,32 @@ class MainActivity : AppCompatActivity() {
             }
         }
         setupCarKeyboard()
+    }
+
+    /** Áp dụng ngay những tuỳ chọn có tác dụng tức thì. */
+    private fun onSettingChanged(key: String) {
+        when (key) {
+            DriveSettings.KEY_FORCE_DARK -> applyNightMode()
+            DriveSettings.KEY_DATA_SAVER -> applyDataSaver()
+        }
+    }
+
+    private fun applyNightMode() {
+        AppCompatDelegate.setDefaultNightMode(
+            if (DriveSettings.isOn(this, DriveSettings.KEY_FORCE_DARK)) {
+                AppCompatDelegate.MODE_NIGHT_YES
+            } else {
+                AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+            }
+        )
+    }
+
+    /** Bật/tắt việc ép luồng hình xuống mức thấp nhất (xem PlaybackGuard). */
+    private fun applyDataSaver() {
+        PlaybackGuard.setDataSaver(
+            webView,
+            DriveSettings.isOn(this, DriveSettings.KEY_DATA_SAVER)
+        )
     }
 
     // ── In-app keyboard (Android Auto car display) ─────────────────
@@ -384,6 +634,25 @@ class MainActivity : AppCompatActivity() {
         }
         runCatching { voiceSearchLauncher.launch(intent) }.onFailure {
             Toast.makeText(this, R.string.voice_search_unavailable, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /**
+     * Xử lý câu vừa đọc: hiểu thành lệnh điều khiển nếu người dùng bật tuỳ chọn,
+     * còn lại (và mặc định cũ) là tìm kiếm.
+     */
+    private fun handleVoiceResult(spoken: String) {
+        if (!DriveSettings.isOn(this, DriveSettings.KEY_VOICE_COMMANDS)) {
+            submitSearch(spoken)
+            return
+        }
+        when (val action = VoiceCommands.parse(spoken)) {
+            is VoiceCommands.Action.Next -> PlayerController.next()
+            is VoiceCommands.Action.Previous -> PlayerController.previous()
+            is VoiceCommands.Action.Pause -> PlayerController.pause()
+            is VoiceCommands.Action.Resume -> PlayerController.play()
+            is VoiceCommands.Action.OpenPlaylist -> openPlaylist(action.playlist)
+            is VoiceCommands.Action.Search -> submitSearch(action.query)
         }
     }
 
@@ -566,8 +835,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleSearchIntent(intent: Intent?) {
         if (intent?.action != ACTION_SEARCH) return
+        val url = intent.getStringExtra(EXTRA_URL)
         val query = intent.getStringExtra(EXTRA_QUERY)
-        if (!query.isNullOrBlank()) {
+        if (!url.isNullOrBlank()) {
+            // Đến từ Android Auto / bong bóng khi WebView đã bị thu hồi.
+            webView?.loadUrl(url)
+        } else if (!query.isNullOrBlank()) {
             binding.searchInput.setText(query)
             submitSearch(query)
         } else if (intent.getBooleanExtra(EXTRA_START_VOICE, false)) {
@@ -672,6 +945,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupBackPressHandling() {
         onBackPressedDispatcher.addCallback(this) {
             when {
+                driveMode?.isVisible == true -> driveMode?.hide()
                 binding.suggestionsPanel.visibility == View.VISIBLE -> {
                     hideSuggestions()
                     binding.searchInput.clearFocus()
@@ -802,6 +1076,9 @@ class MainActivity : AppCompatActivity() {
         private const val MEDIA_STATE_POLL_MS = 1_000L
         private const val RESUME_AFTER_FOCUS_MS = 600L
 
+        /** Ghi điểm "nghe tiếp" thưa hơn nhịp poll để đỡ ghi prefs liên tục. */
+        private const val RESUME_SAVE_INTERVAL_MS = 5_000L
+
         private const val RC_AUDIO = 1102
         private const val RC_STARTUP_PERMISSIONS = 1103
 
@@ -809,5 +1086,6 @@ class MainActivity : AppCompatActivity() {
         const val EXTRA_QUERY = "com.gsvn.aamusic.extra.QUERY"
         const val EXTRA_FOCUS_SEARCH = "com.gsvn.aamusic.extra.FOCUS_SEARCH"
         const val EXTRA_START_VOICE = "com.gsvn.aamusic.extra.START_VOICE"
+        const val EXTRA_URL = "com.gsvn.aamusic.extra.URL"
     }
 }
