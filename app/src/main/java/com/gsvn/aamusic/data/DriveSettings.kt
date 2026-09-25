@@ -21,6 +21,7 @@ object DriveSettings {
     const val KEY_VOICE_COMMANDS = "voice_commands"
     const val KEY_DATA_SAVER = "data_saver"
     const val KEY_FORCE_DARK = "force_dark"
+    const val KEY_SHOW_VIDEO = "show_video"
 
     private const val KEY_DEFAULT_PLAYLIST = "default_playlist"
 
@@ -31,7 +32,9 @@ object DriveSettings {
         KEY_CAR_AUTO_RESUME to false,
         KEY_VOICE_COMMANDS to true,
         KEY_DATA_SAVER to true,
-        KEY_FORCE_DARK to false
+        KEY_FORCE_DARK to false,
+        // Mặc định chỉ nghe (đĩa nhạc quay) — app dùng lúc lái xe là chính.
+        KEY_SHOW_VIDEO to false
     )
 
     private fun prefs(context: Context) =

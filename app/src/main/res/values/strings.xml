@@ -81,6 +81,28 @@ Bấm hình trái tim trong chế độ lái để lưu bài đang nghe.</string
     <string name="playlist_rock">Rock</string>
     <string name="playlist_disco">Disco</string>
     <string name="playlist_vietnamese">Nhạc Việt</string>
+    <string name="playlist_young">Nhạc trẻ</string>
+    <string name="playlist_chinese">Nhạc Trung (Hoa ngữ)</string>
+    <string name="playlist_kpop">Nhạc Hàn (K-Pop)</string>
+    <string name="playlist_english">Âu Mỹ (English)</string>
+    <string name="playlist_bolero">Bolero – Trữ tình</string>
+    <string name="playlist_rap">Rap Việt</string>
+    <string name="playlist_remix">Remix – EDM</string>
+    <string name="playlist_acoustic">Acoustic</string>
+    <string name="playlist_trinh">Nhạc Trịnh</string>
+    <string name="playlist_instrumental">Không lời – Piano</string>
+    <string name="playlist_jazz">Jazz</string>
+    <string name="playlist_lofi">Lofi</string>
+    <string name="playlist_kids">Thiếu nhi</string>
+    <string name="playlist_science">Khoa học</string>
+    <string name="playlist_history">Lịch sử</string>
+    <string name="playlist_audiobook">Sách nói</string>
+    <string name="playlist_stories">Truyện audio</string>
+    <string name="playlist_podcast">Podcast</string>
+    <string name="playlist_learn_english">Học tiếng Anh</string>
+    <string name="playlist_group_drive">Lái xe</string>
+    <string name="playlist_group_genre">Thể loại</string>
+    <string name="playlist_group_learn">Nghe &amp; học</string>
 
     <!-- ── Nghe tiếp ── -->
     <string name="resume_question">Nghe tiếp?</string>
@@ -95,6 +117,7 @@ Bấm hình trái tim trong chế độ lái để lưu bài đang nghe.</string
     <string name="settings_car_resume">Tự phát khi nối với xe</string>
     <string name="settings_voice">Hiểu lệnh nói</string>
     <string name="settings_data_saver">Tiết kiệm dữ liệu (chỉ tải tiếng)</string>
+    <string name="settings_show_video">Hiện video (tắt: chỉ nghe, hiện đĩa nhạc quay)</string>
     <string name="settings_force_dark">Luôn dùng nền tối</string>
     <string name="settings_default_playlist">Danh sách mặc định</string>
     <string name="settings_default_playlist_none">Chưa đặt</string>
@@ -106,4 +129,13 @@ Bấm hình trái tim trong chế độ lái để lưu bài đang nghe.</string
     <!-- ── Lệnh nói ── -->
     <string name="voice_playing_playlist">Đang mở: %1$s</string>
     <string name="car_connected_resume">Đã nối với xe — phát tiếp</string>
+
+    <!-- Android Auto / giọng nói -->
+    <string name="voice_not_heard">Không nghe rõ, thử nói lại nhé</string>
+    <string name="voice_searching">Đang tìm: %1$s</string>
+    <string name="aa_searching">Đang tìm…</string>
+    <string name="aa_error_network">Không tải được kết quả. Kiểm tra kết nối mạng.</string>
+    <string name="aa_error_no_results">Không tìm thấy bài nào cho \"%1$s\"</string>
+    <string name="aa_error_no_favorites">Chưa có bài yêu thích nào.</string>
+    <string name="aa_error_nothing">Chưa có bài nào để phát. Hãy tìm hoặc chọn một danh sách.</string>
 </resources>

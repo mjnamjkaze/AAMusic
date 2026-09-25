@@ -26,9 +26,15 @@ data class BrowserCallbacks(
     val onPageFinished: (String) -> Unit = {}
 )
 
+/**
+ * @param installDocumentStartScripts false khi cấu hình lại một WebView đã cấu
+ *   hình rồi (activity nhận lại trình phát ngầm): script document-start đã cài
+ *   sẵn, cài nữa là mỗi trang chạy hai lần.
+ */
 fun configureWebView(
     webView: WebView,
-    callbacks: BrowserCallbacks = BrowserCallbacks()
+    callbacks: BrowserCallbacks = BrowserCallbacks(),
+    installDocumentStartScripts: Boolean = true
 ) {
     with(webView) {
         setBackgroundColor(Color.BLACK)
@@ -76,7 +82,9 @@ fun configureWebView(
         // Bridge để JS gọi native show/hide keyboard (một số head unit cần)
         addJavascriptInterface(ImeKeyboardBridge(this, callbacks), "ImeKeyboardBridge")
 
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+        if (installDocumentStartScripts &&
+            WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)
+        ) {
             WebViewCompat.addDocumentStartJavaScript(this, DOCUMENT_START_JS, setOf("*"))
             // Phải chạy trước script của trang thì mới cắt được dữ liệu quảng cáo
             // trước khi trình phát đọc — xem AdBlocker.EARLY_JS.
@@ -123,6 +131,7 @@ fun configureWebView(
 
                 if (isYouTube) {
                     view.evaluateJavascript(AdBlocker.MUSIC_ADBLOCK_JS, null)
+                    view.evaluateJavascript(VideoMode.JS, null)
                     view.evaluateJavascript(SponsorBlock.SKIP_JS, null)
                     // Nhạc thường chạy nền/tắt màn hình, lúc YouTube hỏi "còn
                     // xem không?" thì không ai bấm — tự xác nhận và phát tiếp.

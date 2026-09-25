@@ -6,38 +6,40 @@ import android.support.v4.media.MediaDescriptionCompat
 import androidx.media.MediaBrowserServiceCompat
 import com.gsvn.aamusic.R
 import com.gsvn.aamusic.data.DriveLibrary
+import com.gsvn.aamusic.data.DrivePlaylist
 import com.gsvn.aamusic.data.DrivePlaylists
 import com.gsvn.aamusic.data.VideoItem
-import com.gsvn.aamusic.player.PlayerController
+import com.gsvn.aamusic.player.ArtworkProvider
+import com.gsvn.aamusic.player.MediaSessionHolder
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
- * Cây duyệt cho Android Auto: Yêu thích · Danh sách · Vừa nghe.
+ * Cây duyệt cho Android Auto: Yêu thích · Danh sách · Vừa nghe, cộng ô tìm kiếm.
  *
- * App vẫn chiếu giao diện điện thoại lên màn xe như trước (xem các intent-filter
- * của MainActivity trong AndroidManifest) — service này **thêm vào**, không thay
- * thế: nó cho phép chọn bài từ giao diện media chuẩn của Android Auto, nơi hệ
- * thống tự vẽ nút to và lo phần chống mất tập trung.
+ * Đây là giao diện duy nhất Android Auto cho dùng **lúc xe đang chạy** (hệ
+ * thống tự vẽ nút to, khoá bàn phím, cho đọc bằng giọng nói). App vẫn chiếu
+ * giao diện điện thoại lên màn xe như trước (xem các intent-filter của
+ * MainActivity trong AndroidManifest) — service này **thêm vào**, không thay thế.
  *
- * Nội dung cây hoàn toàn là thư viện cá nhân trong máy ([DriveLibrary]) và bảng
- * danh sách dựng sẵn ([DrivePlaylists]); service không gọi ra ngoài lấy gì cả.
- *
- * Phát nhạc vẫn do WebView trong MainActivity đảm nhiệm, nên chọn một mục ở đây
- * sẽ đưa app lên trước rồi mở địa chỉ tương ứng — đúng luồng mà bong bóng nổi
- * và notification đang dùng ([PlayerController.load]).
+ * Service chỉ dựng cây; chọn một mục thì phiên media gọi thẳng [CarPlayback],
+ * không phụ thuộc service hay activity còn sống.
  */
 class DriveBrowserService : MediaBrowserServiceCompat() {
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
     override fun onCreate() {
         super.onCreate()
-        // Dùng chung phiên media sống suốt vòng đời app, để nút trên màn xe và
-        // nút trên vô lăng cùng nói chuyện với một chỗ.
-        val session = com.gsvn.aamusic.player.MediaSessionHolder.ensure(this)
-        sessionToken = session.sessionToken
-        com.gsvn.aamusic.player.MediaSessionHolder.onPlayRequest = { mediaId -> play(mediaId) }
+        // Phiên media sống suốt vòng đời tiến trình; token chỉ đặt được một lần.
+        sessionToken = MediaSessionHolder.ensure(this).sessionToken
     }
 
     override fun onDestroy() {
-        com.gsvn.aamusic.player.MediaSessionHolder.onPlayRequest = null
+        scope.cancel()
         super.onDestroy()
     }
 
@@ -45,40 +47,49 @@ class DriveBrowserService : MediaBrowserServiceCompat() {
         clientPackageName: String,
         clientUid: Int,
         rootHints: Bundle?
-    ): BrowserRoot = BrowserRoot(ROOT_ID, null)
+    ): BrowserRoot? {
+        // Hệ thống hỏi "bài vừa nghe" để hiện nút nghe tiếp lúc khởi động —
+        // không hỗ trợ, trả null như NewPipe để khỏi bị gọi phát ngoài ý muốn.
+        if (rootHints?.getBoolean(BrowserRoot.EXTRA_RECENT) == true) return null
+        val extras = Bundle().apply {
+            // Không có cờ này thì Android Auto không hiện ô tìm kiếm, và lệnh
+            // "tìm …" bằng giọng nói không bao giờ tới app.
+            putBoolean(EXTRA_SEARCH_SUPPORTED, true)
+            putInt(EXTRA_STYLE_BROWSABLE, STYLE_LIST)
+            putInt(EXTRA_STYLE_PLAYABLE, STYLE_LIST)
+        }
+        return BrowserRoot(ROOT_ID, extras)
+    }
 
     override fun onLoadChildren(parentId: String, result: Result<MutableList<MediaItem>>) {
-        val items = when {
-            parentId == ROOT_ID -> rootMenu()
-            parentId == NODE_FAVORITES -> DriveLibrary.favorites(this).map(::trackItem)
-            parentId == NODE_RECENT -> DriveLibrary.recent(this).take(MAX_ROWS).map(::trackItem)
-            parentId == NODE_PLAYLISTS -> DrivePlaylists.ALL.map(::playlistItem)
+        val items = when (parentId) {
+            ROOT_ID -> rootMenu()
+            NODE_FAVORITES -> DriveLibrary.favorites(this)
+                .map { trackItem(CarPlayback.SOURCE_FAVORITES, it) }
+            NODE_RECENT -> DriveLibrary.recent(this).take(MAX_ROWS)
+                .map { trackItem(CarPlayback.SOURCE_RECENT, it) }
+            NODE_PLAYLISTS -> DrivePlaylists.ALL.map(::playlistItem)
             else -> emptyList()
         }
         result.sendResult(items.toMutableList())
     }
 
-    /**
-     * Tìm trong thư viện của máy.
-     *
-     * App không có chỉ mục bài hát của riêng mình để tra, nên ở đây chỉ lọc
-     * những gì người dùng đã nghe/đã thích. Muốn tìm mới thì dùng
-     * `onPlayFromSearch` của phiên media — nó mở đúng trang kết quả YouTube.
-     */
+    /** Ô tìm của xe (gõ khi đỗ, hoặc đọc khi đang chạy): bài trong máy + YouTube. */
     override fun onSearch(
         query: String,
         extras: Bundle?,
         result: Result<MutableList<MediaItem>>
     ) {
-        val needle = DrivePlaylists.normalize(query)
-        val hits = (DriveLibrary.favorites(this) + DriveLibrary.recent(this))
-            .distinctBy { it.id }
-            .filter { item ->
-                DrivePlaylists.normalize(item.title).contains(needle) ||
-                    DrivePlaylists.normalize(item.channel).contains(needle)
-            }
-            .take(MAX_ROWS)
-        result.sendResult(hits.map(::trackItem).toMutableList())
+        result.detach()
+        scope.launch {
+            val hits = runCatching { CarPlayback.search(this@DriveBrowserService, query) }
+                .getOrDefault(emptyList())
+                .take(MAX_ROWS)
+            CarPlayback.rememberSearch(hits)
+            result.sendResult(
+                hits.map { trackItem(CarPlayback.SOURCE_SEARCH, it) }.toMutableList()
+            )
+        }
     }
 
     private fun rootMenu(): List<MediaItem> = listOf(
@@ -92,58 +103,46 @@ class DriveBrowserService : MediaBrowserServiceCompat() {
         MediaItem.FLAG_BROWSABLE
     )
 
-    private fun trackItem(item: VideoItem): MediaItem = MediaItem(
+    private fun trackItem(source: String, item: VideoItem): MediaItem = MediaItem(
         MediaDescriptionCompat.Builder()
-            .setMediaId(PREFIX_TRACK + item.id)
+            .setMediaId(CarPlayback.trackMediaId(source, item))
             .setTitle(item.title.ifBlank { getString(R.string.drive_unknown_track) })
             .setSubtitle(item.channel)
-            .setIconUri(android.net.Uri.parse(item.thumbnailUrl))
+            .setIconUri(ArtworkProvider.uriFor(item.id))
             .build(),
         MediaItem.FLAG_PLAYABLE
     )
 
-    private fun playlistItem(playlist: com.gsvn.aamusic.data.DrivePlaylist): MediaItem = MediaItem(
+    private fun playlistItem(playlist: DrivePlaylist): MediaItem = MediaItem(
         MediaDescriptionCompat.Builder()
-            .setMediaId(PREFIX_PLAYLIST + playlist.id)
+            .setMediaId(CarPlayback.PREFIX_PLAYLIST + playlist.id)
             .setTitle(getString(playlist.nameRes))
+            .setIconUri(resourceUri(playlist.iconRes))
+            // Các mục liền nhau cùng nhóm được xe gom dưới một tiêu đề.
+            .setExtras(Bundle().apply {
+                putString(EXTRA_GROUP_TITLE, getString(playlist.groupRes))
+            })
             .build(),
         // Danh sách dựng sẵn là một tìm kiếm, không phải thư mục duyệt được:
-        // chạm vào là phát luôn.
+        // chạm vào là phát luôn — lúc lái xe càng ít chạm càng tốt.
         MediaItem.FLAG_PLAYABLE
     )
 
-    /** Xử lý mục vừa được chọn trên màn hình xe. */
-    private fun play(mediaId: String) {
-        when {
-            mediaId.startsWith(PREFIX_TRACK) -> {
-                val id = mediaId.removePrefix(PREFIX_TRACK)
-                PlayerController.load(VideoItem(id, "", "", "").watchUrl)
-            }
-
-            mediaId.startsWith(PREFIX_PLAYLIST) -> {
-                val playlist = DrivePlaylists.byId(mediaId.removePrefix(PREFIX_PLAYLIST)) ?: return
-                if (playlist.isLocal) {
-                    // "Yêu thích": phát bài đầu, phần còn lại xếp vào hàng chờ.
-                    val favorites = DriveLibrary.favorites(this)
-                    val first = favorites.firstOrNull() ?: return
-                    DriveLibrary.replaceQueue(this, favorites.drop(1))
-                    PlayerController.load(first.watchUrl)
-                } else {
-                    PlayerController.load(playlist.searchUrl)
-                }
-            }
-
-            else -> PlayerController.play()
-        }
-    }
+    private fun resourceUri(resId: Int): android.net.Uri =
+        android.net.Uri.parse("android.resource://$packageName/$resId")
 
     private companion object {
         const val ROOT_ID = "drivetune_root"
         const val NODE_FAVORITES = "node_favorites"
         const val NODE_PLAYLISTS = "node_playlists"
         const val NODE_RECENT = "node_recent"
-        const val PREFIX_TRACK = "track:"
-        const val PREFIX_PLAYLIST = "playlist:"
+
+        // androidx.media.utils.MediaConstants — viết tay để khỏi thêm thư viện.
+        const val EXTRA_SEARCH_SUPPORTED = "android.media.browse.SEARCH_SUPPORTED"
+        const val EXTRA_STYLE_BROWSABLE = "android.media.browse.CONTENT_STYLE_BROWSABLE_HINT"
+        const val EXTRA_STYLE_PLAYABLE = "android.media.browse.CONTENT_STYLE_PLAYABLE_HINT"
+        const val STYLE_LIST = 1
+        const val EXTRA_GROUP_TITLE = "android.media.browse.CONTENT_STYLE_GROUP_TITLE_HINT"
 
         /** Màn hình xe không cuộn được dài; danh sách quá dài chỉ gây rối. */
         const val MAX_ROWS = 30

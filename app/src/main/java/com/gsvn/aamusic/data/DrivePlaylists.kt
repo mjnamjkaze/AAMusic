@@ -10,13 +10,16 @@ import com.gsvn.aamusic.R
  * @param query  từ khoá gửi cho YouTube; rỗng nghĩa là danh sách nội bộ của app
  *               (Yêu thích) chứ không phải một tìm kiếm.
  * @param spoken các cách người dùng hay đọc tên danh sách này khi ra lệnh nói.
+ * @param groupRes nhóm hiển thị (Lái xe / Thể loại / Nghe & học) — màn hình xe
+ *               hiện tiêu đề nhóm để danh sách dài vẫn dễ tìm.
  */
 data class DrivePlaylist(
     val id: String,
     val nameRes: Int,
     val iconRes: Int,
     val query: String,
-    val spoken: List<String> = emptyList()
+    val spoken: List<String> = emptyList(),
+    val groupRes: Int = R.string.playlist_group_drive
 ) {
     val isLocal: Boolean get() = query.isBlank()
 
@@ -91,9 +94,58 @@ object DrivePlaylists {
         DrivePlaylist(
             "vietnamese", R.string.playlist_vietnamese, R.drawable.ic_playlist_vietnam,
             "nhạc Việt hay nhất",
-            listOf("nhạc việt", "nhac viet", "việt nam", "viet nam", "vietnamese", "v-pop", "vpop")
-        )
+            listOf("nhạc việt", "nhac viet", "việt nam", "viet nam", "vietnamese", "v-pop", "vpop"),
+            R.string.playlist_group_genre
+        ),
+        genre("vpop_young", R.string.playlist_young, "nhạc trẻ hay nhất hiện nay",
+            "nhạc trẻ", "nhac tre"),
+        genre("chinese", R.string.playlist_chinese, "nhạc Trung Quốc hay nhất douyin",
+            "nhạc trung", "nhac trung", "trung quốc", "trung quoc", "nhạc hoa", "nhac hoa",
+            "chinese", "c-pop", "cpop", "douyin"),
+        genre("kpop", R.string.playlist_kpop, "kpop hits playlist",
+            "nhạc hàn", "nhac han", "hàn quốc", "han quoc", "korean", "k-pop", "kpop"),
+        genre("english", R.string.playlist_english, "top english songs playlist",
+            "âu mỹ", "au my", "tiếng anh", "tieng anh", "english", "us uk", "us-uk"),
+        genre("bolero", R.string.playlist_bolero, "nhạc bolero trữ tình hay nhất",
+            "bolero", "nhạc vàng", "nhac vang", "trữ tình", "tru tinh"),
+        genre("rap_viet", R.string.playlist_rap, "rap việt hay nhất",
+            "rap việt", "rap viet", "nhạc rap", "nhac rap", "hip hop", "hiphop"),
+        genre("remix", R.string.playlist_remix, "nhạc remix edm vinahouse",
+            "remix", "vinahouse", "nhạc bay", "nhac bay"),
+        genre("acoustic", R.string.playlist_acoustic, "acoustic cover nhẹ nhàng",
+            "acoustic"),
+        genre("trinh", R.string.playlist_trinh, "nhạc Trịnh Công Sơn hay nhất",
+            "nhạc trịnh", "nhac trinh", "trịnh công sơn", "trinh cong son"),
+        genre("instrumental", R.string.playlist_instrumental, "nhạc không lời piano thư giãn",
+            "không lời", "khong loi", "piano", "instrumental", "hòa tấu", "hoa tau"),
+        genre("jazz", R.string.playlist_jazz, "jazz music playlist",
+            "jazz", "blues"),
+        genre("lofi", R.string.playlist_lofi, "lofi chill việt",
+            "lofi", "lo-fi"),
+        genre("kids", R.string.playlist_kids, "nhạc thiếu nhi hay nhất",
+            "thiếu nhi", "thieu nhi", "trẻ em", "tre em", "kids", "children"),
+        learn("science", R.string.playlist_science, "khoa học thú vị khám phá vũ trụ",
+            R.drawable.computer_24, "khoa học", "khoa hoc", "science", "vũ trụ", "vu tru"),
+        learn("history", R.string.playlist_history, "lịch sử Việt Nam kể chuyện",
+            R.drawable.ic_history, "lịch sử", "lich su", "history"),
+        learn("audiobook", R.string.playlist_audiobook, "sách nói hay nhất",
+            R.drawable.info_24px, "sách nói", "sach noi", "audiobook", "đọc sách", "doc sach"),
+        learn("stories", R.string.playlist_stories, "truyện audio hay",
+            R.drawable.ic_mic, "truyện", "truyen", "kể chuyện", "ke chuyen"),
+        learn("podcast", R.string.playlist_podcast, "podcast tiếng Việt hay",
+            R.drawable.ic_mic, "podcast"),
+        learn("learn_english", R.string.playlist_learn_english, "học tiếng Anh giao tiếp mỗi ngày",
+            R.drawable.kid_star_24px, "học tiếng anh", "hoc tieng anh", "learn english")
     )
+
+    private fun genre(id: String, nameRes: Int, query: String, vararg spoken: String) =
+        DrivePlaylist(
+            id, nameRes, R.drawable.ic_music_note, query, spoken.toList(),
+            R.string.playlist_group_genre
+        )
+
+    private fun learn(id: String, nameRes: Int, query: String, iconRes: Int, vararg spoken: String) =
+        DrivePlaylist(id, nameRes, iconRes, query, spoken.toList(), R.string.playlist_group_learn)
 
     fun byId(id: String): DrivePlaylist? = ALL.firstOrNull { it.id == id }
 
@@ -101,14 +153,25 @@ object DrivePlaylists {
      * Danh sách khớp với câu người dùng đọc, hoặc null.
      *
      * So khớp trên chuỗi đã chuẩn hoá (thường + bỏ dấu) nên "nhạc rock", "Nhac
-     * Rock" hay "rock" đều về cùng một mục.
+     * Rock" hay "rock" đều về cùng một mục. Nhiều mục cùng khớp thì lấy mục có
+     * cụm từ khớp **dài nhất** — "học tiếng anh" phải ra Học tiếng Anh chứ
+     * không phải Âu Mỹ ("tiếng anh").
      */
     fun match(spokenText: String): DrivePlaylist? {
         val text = normalize(spokenText)
         if (text.isBlank()) return null
-        return ALL.firstOrNull { playlist ->
-            playlist.spoken.any { text.contains(normalize(it)) }
+        var best: DrivePlaylist? = null
+        var bestLength = 0
+        for (playlist in ALL) {
+            for (alias in playlist.spoken) {
+                val key = normalize(alias)
+                if (key.length > bestLength && text.contains(key)) {
+                    best = playlist
+                    bestLength = key.length
+                }
+            }
         }
+        return best
     }
 
     /** Bỏ dấu tiếng Việt để so khớp không phụ thuộc cách máy nghe ra dấu. */

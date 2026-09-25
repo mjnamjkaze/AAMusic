@@ -18,7 +18,7 @@ import com.gsvn.aamusic.player.ArtworkCache
 /**
  * Cài đặt, mở bằng cách chạm logo trên thanh tìm kiếm.
  *
- * Cố tình ngắn — sáu công tắc và hai dòng — theo đúng tinh thần "ít lựa chọn,
+ * Cố tình ngắn — bảy công tắc và hai dòng — theo đúng tinh thần "ít lựa chọn,
  * mỗi lựa chọn đều rõ tác dụng". Mỗi công tắc ghi thẳng vào [DriveSettings];
  * thứ nào cần áp dụng ngay (nền tối, tiết kiệm dữ liệu) thì báo ngược ra
  * activity qua [onSettingChanged].
@@ -41,6 +41,7 @@ class SettingsSheet(
         bind(binding.switchResume, DriveSettings.KEY_RESUME)
         bind(binding.switchCarResume, DriveSettings.KEY_CAR_AUTO_RESUME)
         bind(binding.switchVoice, DriveSettings.KEY_VOICE_COMMANDS)
+        bind(binding.switchShowVideo, DriveSettings.KEY_SHOW_VIDEO)
         bind(binding.switchDataSaver, DriveSettings.KEY_DATA_SAVER)
         bind(binding.switchForceDark, DriveSettings.KEY_FORCE_DARK)
 

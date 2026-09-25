@@ -30,6 +30,7 @@ import androidx.core.content.ContextCompat
 import androidx.media.app.NotificationCompat as MediaStyleNotif
 import com.gsvn.aamusic.player.ArtworkCache
 import com.gsvn.aamusic.player.MediaSessionHolder
+import com.gsvn.aamusic.player.PlaybackHost
 import com.gsvn.aamusic.player.PlayerController
 import kotlin.math.abs
 import kotlin.math.hypot
@@ -72,35 +73,29 @@ class BackgroundPlaybackService : Service() {
     private var lastNotifPlaying: Boolean? = null
     private var lastNotifVideoId: String? = null
 
-    private val handler = Handler(Looper.getMainLooper())
     private var polling = false
 
-    private val statedPoll = object : Runnable {
-        override fun run() {
-            if (!polling) return
-            PlayerController.queryState { state ->
-                val shownTitle = state.title.ifBlank { getString(R.string.bubble_playing) }
-                titleView?.text = shownTitle
-                playPauseBtn?.setImageResource(
-                    if (state.playing) R.drawable.ic_pause else R.drawable.ic_play
-                )
-                MediaSessionHolder.update(state)
+    // Nhịp poll nằm ở PlaybackHost (chạy cả khi chỉ có trình phát ngầm của
+    // Android Auto); service chỉ nghe để vẽ bong bóng + notification.
+    private val stateListener: (PlayerController.PlaybackState) -> Unit = { state ->
+        val shownTitle = state.title.ifBlank { getString(R.string.bubble_playing) }
+        titleView?.text = shownTitle
+        playPauseBtn?.setImageResource(
+            if (state.playing) R.drawable.ic_pause else R.drawable.ic_play
+        )
 
-                if (shownTitle != lastNotifTitle || state.playing != lastNotifPlaying ||
-                    state.videoId != lastNotifVideoId
-                ) {
-                    lastNotifTitle = shownTitle
-                    lastNotifPlaying = state.playing
-                    lastNotifVideoId = state.videoId
-                    notify(shownTitle, state)
-                    // Ảnh bìa về sau một nhịp thì dựng lại notification để
-                    // thumbnail thật thay chỗ ảnh thương hiệu.
-                    ArtworkCache.load(state.videoId) {
-                        if (lastNotifVideoId == state.videoId) notify(shownTitle, state)
-                    }
-                }
+        if (shownTitle != lastNotifTitle || state.playing != lastNotifPlaying ||
+            state.videoId != lastNotifVideoId
+        ) {
+            lastNotifTitle = shownTitle
+            lastNotifPlaying = state.playing
+            lastNotifVideoId = state.videoId
+            notify(shownTitle, state)
+            // Ảnh bìa về sau một nhịp thì dựng lại notification để
+            // thumbnail thật thay chỗ ảnh thương hiệu.
+            ArtworkCache.load(state.videoId) {
+                if (lastNotifVideoId == state.videoId) notify(shownTitle, state)
             }
-            handler.postDelayed(this, POLL_INTERVAL_MS)
         }
     }
 
@@ -215,12 +210,12 @@ class BackgroundPlaybackService : Service() {
     private fun startPolling() {
         if (polling) return
         polling = true
-        handler.post(statedPoll)
+        PlaybackHost.addListener(stateListener)
     }
 
     private fun stopPolling() {
         polling = false
-        handler.removeCallbacks(statedPoll)
+        PlaybackHost.removeListener(stateListener)
     }
 
     private fun removeBubble() {
@@ -239,7 +234,11 @@ class BackgroundPlaybackService : Service() {
     // ── Drag-to-close target (Messenger chat-head style) ───────────
 
     private fun stopEverything() {
+        PlayerController.pause()
         sendBroadcast(Intent(ACTION_STOP_PLAYBACK).setPackage(packageName))
+        // Trình phát ngầm (mở từ Android Auto) không có activity nào nhận
+        // broadcast trên để dừng — huỷ luôn cho tắt tiếng hẳn.
+        PlaybackHost.releaseHeadless()
         stopPolling()
         removeBubble()
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -482,7 +481,6 @@ class BackgroundPlaybackService : Service() {
         const val ACTION_PLAYPAUSE = "com.gsvn.aamusic.PLAYPAUSE"
         const val ACTION_NEXT = "com.gsvn.aamusic.NEXT"
         const val ACTION_PREV = "com.gsvn.aamusic.PREV"
-        private const val POLL_INTERVAL_MS = 1000L
 
         fun start(context: Context) {
             val intent = Intent(context, BackgroundPlaybackService::class.java)

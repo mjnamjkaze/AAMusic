@@ -245,7 +245,7 @@ object AdBlocker {
      * Lớp dọn giao diện, chạy sau khi trang dựng xong:
      *  - Bỏ qua quảng cáo còn lọt lưới (bấm nút skip, tua thẳng tới cuối).
      *  - Ẩn banner / mời mua Premium.
-     *  - Ẩn khung hình video để app thuần nghe, ảnh bìa vẫn hiện.
+     *  (Ẩn/hiện khung hình video nay là việc của [VideoMode].)
      */
     val MUSIC_ADBLOCK_JS = """
         (function() {
@@ -254,11 +254,6 @@ object AdBlocker {
 
             var style = document.createElement('style');
             style.textContent = [
-                /* ── Hide the video surface (keep audio + cover art) ── */
-                '#player video, .html5-video-player video,',
-                '#song-video, ytmusic-player #video,',
-                '.video-stream { visibility: hidden !important; }',
-
                 /* ── Ad / upsell elements ── */
                 'ytmusic-mealbar-promo-renderer { display: none !important; }',
                 'ytmusic-statement-banner-renderer { display: none !important; }',

@@ -26,12 +26,22 @@ object PlayerController {
         appContext = webView.context.applicationContext
     }
 
-    fun unregister() {
+    /** Gỡ [webView] nếu nó đúng là trình phát đang đăng ký. */
+    fun unregister(webView: WebView) {
+        if (webViewRef?.get() !== webView) return
         webViewRef?.clear()
         webViewRef = null
     }
 
-    private fun webView(): WebView? = webViewRef?.get()
+    /** Cho biết context ứng dụng từ trước khi có WebView (phiên media, service). */
+    fun attach(context: Context) {
+        if (appContext == null) appContext = context.applicationContext
+    }
+
+    /** WebView đang làm trình phát, hoặc null nếu chưa có / đã bị huỷ. */
+    fun currentWebView(): WebView? = webViewRef?.get()
+
+    private fun webView(): WebView? = currentWebView()
 
     fun playPause() = eval(JS_PLAY_PAUSE)
 
@@ -95,20 +105,14 @@ object PlayerController {
     }
 
     /**
-     * Mở [url] trong WebView. App bị hệ thống thu hồi mất WebView (chỉ còn
-     * service sống) thì đưa activity lên trước kèm địa chỉ cần mở.
+     * Mở [url] trong trình phát. Activity không còn WebView (đã thoát app, hay
+     * tiến trình chỉ mở lên vì Android Auto) thì [PlaybackHost] dựng WebView
+     * ngầm — không mở activity từ nền, vì Android chặn việc đó.
      */
     fun load(url: String) {
         if (url.isBlank()) return
-        val wv = webView()
-        if (wv != null) {
-            wv.post { wv.loadUrl(url) }
-            return
-        }
-        launchActivity {
-            it.action = MainActivity.ACTION_SEARCH
-            it.putExtra(MainActivity.EXTRA_URL, url)
-        }
+        val ctx = appContext ?: return
+        PlaybackHost.load(ctx, url)
     }
 
     /** "3:07" / "1:02:33" — dùng chung cho nhãn thời lượng khắp app. */

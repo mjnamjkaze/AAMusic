@@ -76,6 +76,17 @@ object ArtworkCache {
         }
     }
 
+    /**
+     * Tệp ảnh bìa trên đĩa, tải về nếu chưa có. **Chặn luồng** — chỉ gọi từ
+     * luồng nền (ArtworkProvider chạy trên luồng binder). Null nếu không có.
+     */
+    fun fileBlocking(videoId: String): File? {
+        val file = fileFor(videoId) ?: return null
+        if (file.isFile) return file
+        download(videoId) ?: return null
+        return file.takeIf { it.isFile }
+    }
+
     /** Xoá cache đĩa (mục "Dọn lịch sử và bộ nhớ đệm" trong Cài đặt). */
     fun clearDisk() {
         val dir = cacheDir ?: return
