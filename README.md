@@ -43,9 +43,7 @@ Từ 2.4.0, app phát được **mà không cần mở trên điện thoại**. 
 
 **Xếp nhiều bài để nghe lần lượt?** Bấm nút **thư viện** cạnh ô tìm (hoặc nút Hàng chờ trong Chế độ lái) → mục **Tìm** → gõ (hoặc bấm 🎙️ nói) tên bài → bấm **+** ở từng bài. Kéo xuống cuối là tải thêm kết quả. Chạm vào bài là phát ngay. Trên màn hình Android Auto, ô tìm dùng bàn phím to của app thay cho bàn phím hệ thống (vốn hiện bé tí, không gõ được).
 
-**Cập nhật bản mới thế nào?** Có bản mới trên GitHub thì lúc mở app sẽ có một dòng thông báo. Vào Cài đặt → **Cập nhật lên bản …** (ngay trên dòng Ủng hộ tác giả), app tự tải rồi mở màn cài đặt. Lần đầu Android sẽ hỏi cho phép DriveTune cài ứng dụng, bấm cho phép.
-
-**Ủng hộ tác giả?** DriveTune miễn phí. Thấy hay thì vào Cài đặt → **Ủng hộ tác giả** để quét mã VietQR (BIDV · VO HAI NAM · 2152709353). Cảm ơn bạn ☕
+**Cập nhật bản mới thế nào?** Có bản mới trên GitHub thì lúc mở app sẽ có một dòng thông báo. Vào Cài đặt → **Cập nhật lên bản …** (cuối bảng Cài đặt), app tự tải rồi mở màn cài đặt. Lần đầu Android sẽ hỏi cho phép DriveTune cài ứng dụng, bấm cho phép.
 
 **Tốn dữ liệu di động không?** Tắt *Hiện video* và bật *Tiết kiệm dữ liệu* trong Cài đặt (chạm logo). Khi đó mất khoảng 90 MB mỗi giờ.
 
@@ -56,7 +54,7 @@ Từ 2.4.0, app phát được **mà không cần mở trên điện thoại**. 
 Ứng dụng Android bọc WebView phát **YouTube / YouTube Music dạng audio-first**, làm riêng cho lúc lái xe — **Chế độ lái** nút to chữ rõ, thư viện Yêu thích / Hàng chờ / Danh sách dựng sẵn, nghe tiếp từ chỗ đang dở, lệnh nói, chạy nhạc nền, chặn quảng cáo, và **chạy được trên Android Auto** (cả giao diện media chuẩn lẫn chiếu màn hình).
 
 - Package: `com.gsvn.aamusic`
-- minSdk 35 · targetSdk 36 · versionName 2.7.0
+- minSdk 35 · targetSdk 36 · versionName 2.8.0
 - Ngôn ngữ: Kotlin + WebView (không dùng thư viện player riêng)
 
 > ⚠️ Dự án mang tính học tập / cá nhân. Việc bọc YouTube trong WebView, chặn quảng cáo và giả dạng app điều hướng để lên Android Auto có thể vi phạm ToS của YouTube/Google. Tự chịu trách nhiệm khi dùng.
@@ -256,7 +254,7 @@ Kèm theo là chuyện data: ẩn video bằng CSS **không cắt được byte 
 
 ### 11. Tìm bằng giọng nói
 
-Lái xe thì không gõ được, nên giọng nói là đường nhập chính. Từ 2.4.0 app nghe **trực tiếp bằng `SpeechRecognizer`** ([VoiceListener](app/src/main/java/com/gsvn/aamusic/voice/VoiceListener.kt), `vi-VN`) chứ không mở hộp thoại `RecognizerIntent`. Hộp thoại đó hay không hiện được trên màn hình xe, nên nói xong không có kết quả nào trả về. Manifest phải khai `<queries>` cho `android.speech.RecognitionService`, nếu không Android 11+ ẩn dịch vụ nhận dạng. Nói xong, app **tìm và phát luôn bài đầu tiên** ([YouTubeSearch](app/src/main/java/com/gsvn/aamusic/data/YouTubeSearch.kt)) và xếp các bài còn lại vào hàng chờ. Máy không có dịch vụ nhận dạng thì mới dùng hộp thoại cũ. Các chỗ gọi được:
+Lái xe thì không gõ được, nên giọng nói là đường nhập chính. Từ 2.8.0: ưu tiên dịch vụ nhận dạng của Google (`com.google.android.googlequicksearchbox`) vì dịch vụ mặc định của Samsung/Xiaomi thường không hiểu tiếng Việt; **tạm dừng nhạc trong lúc nghe** (tiếng nhạc qua loa xe lọt vào mic làm không nghe ra lời) rồi phát lại; dịch vụ báo lỗi thì trên điện thoại lùi về hộp thoại của hệ thống, trên màn hình xe thì báo mã lỗi. Từ 2.4.0 app nghe **trực tiếp bằng `SpeechRecognizer`** ([VoiceListener](app/src/main/java/com/gsvn/aamusic/voice/VoiceListener.kt), `vi-VN`) chứ không mở hộp thoại `RecognizerIntent`. Hộp thoại đó hay không hiện được trên màn hình xe, nên nói xong không có kết quả nào trả về. Manifest phải khai `<queries>` cho `android.speech.RecognitionService`, nếu không Android 11+ ẩn dịch vụ nhận dạng. Nói xong, app **tìm và phát luôn bài đầu tiên** ([YouTubeSearch](app/src/main/java/com/gsvn/aamusic/data/YouTubeSearch.kt)) và xếp các bài còn lại vào hàng chờ. Máy không có dịch vụ nhận dạng thì mới dùng hộp thoại cũ. Các chỗ gọi được:
 
 | Chỗ | Khi nào dùng |
 |---|---|
@@ -452,7 +450,7 @@ Các chi tiết khác:
 - Tải `DriveTune-<version>.apk` ở trang [Releases](https://github.com/mjnamjkaze/DriveTune/releases/latest), copy vào máy và cài (cho phép "Cài từ nguồn không xác định" khi được hỏi), **hoặc**
 - Cài qua ADB:
   ```bash
-  adb install -r DriveTune-2.7.0.apk
+  adb install -r DriveTune-2.8.0.apk
   ```
 
 ### Bước 2 — Bật Developer mode trong app Android Auto

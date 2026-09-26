@@ -59,7 +59,7 @@
             android:exported="true"
             android:resizeableActivity="true"
             android:label="@string/app_name"
-            android:windowSoftInputMode="adjustPan"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.DriveTune">
             <!-- Android Auto needs BOTH filters below to show this app in the car
                  launcher. Removing either one makes it disappear from Android Auto

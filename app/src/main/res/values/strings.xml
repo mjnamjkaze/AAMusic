@@ -22,16 +22,6 @@
 
     <string name="settings_open">Cài đặt</string>
 
-    <string name="donate_title">Ủng hộ tác giả</string>
-    <string name="donate_subtitle">DriveTune miễn phí — thấy hay thì mời một ly cà phê nhé ☕</string>
-    <string name="donate_account_short">BIDV · VO HAI NAM</string>
-    <string name="donate_bank">Ngân hàng TMCP Đầu tư và Phát triển Việt Nam (BIDV)</string>
-    <string name="donate_name">VO HAI NAM</string>
-    <string name="donate_account">2152709353</string>
-    <string name="donate_hint">Mở app ngân hàng, quét mã để chuyển khoản.</string>
-    <string name="donate_copy">Sao chép số tài khoản</string>
-    <string name="donate_copied">Đã sao chép số tài khoản</string>
-    <string name="donate_close">Đóng</string>
     <string name="update_row">Cập nhật lên bản %1$s</string>
     <string name="update_downloading">Đang tải bản %1$s… xong sẽ hỏi cài đặt</string>
     <string name="update_available_toast">Có DriveTune %1$s mới — chạm logo để cập nhật</string>
@@ -162,6 +152,7 @@ Bấm hình trái tim trong chế độ lái để lưu bài đang nghe.</string
 
     <!-- Android Auto / giọng nói -->
     <string name="voice_not_heard">Không nghe rõ, thử nói lại nhé</string>
+    <string name="voice_error_code">Nhận giọng nói bị lỗi (mã %1$d) — thử lại sau</string>
     <string name="voice_searching">Đang tìm: %1$s</string>
     <string name="aa_searching">Đang tìm…</string>
     <string name="aa_error_network">Không tải được kết quả. Kiểm tra kết nối mạng.</string>

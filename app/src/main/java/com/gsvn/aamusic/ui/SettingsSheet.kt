@@ -155,36 +155,13 @@ class SettingsSheet(
         }
     }
 
-    /** Dòng cuối: phiên bản + ủng hộ tác giả. */
+    /** Dòng cuối: số phiên bản. */
     private fun setupAbout() {
-        val version = runCatching {
-            activity.packageManager.getPackageInfo(activity.packageName, 0).versionName
-        }.getOrNull().orEmpty()
-        binding.aboutVersion.text = if (version.isBlank()) "" else "v$version"
-
-        binding.aboutRow.setOnClickListener { showDonate() }
+        val version = AppUpdate.currentVersion(activity)
+        binding.aboutVersion.text = if (version.isBlank()) "" else "DriveTune v$version"
     }
 
-    /** Mã VietQR để chuyển khoản ủng hộ, kèm nút chép số tài khoản. */
-    private fun showDonate() {
-        MaterialAlertDialogBuilder(activity)
-            .setTitle(R.string.donate_title)
-            .setView(R.layout.dialog_donate)
-            .setPositiveButton(R.string.donate_copy) { _, _ ->
-                val clipboard = activity.getSystemService(android.content.ClipboardManager::class.java)
-                clipboard?.setPrimaryClip(
-                    android.content.ClipData.newPlainText(
-                        activity.getString(R.string.donate_name),
-                        activity.getString(R.string.donate_account)
-                    )
-                )
-                Toast.makeText(activity, R.string.donate_copied, Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton(R.string.donate_close, null)
-            .show()
-    }
-
-    /** Có bản mới trên GitHub thì hiện dòng "Cập nhật lên bản …" ngay trên dòng Ủng hộ. */
+    /** Có bản mới trên GitHub thì hiện dòng "Cập nhật lên bản …" ngay trên số phiên bản. */
     private fun setupUpdate() {
         val scope = (activity as? androidx.lifecycle.LifecycleOwner)?.lifecycleScope ?: return
         AppUpdate.check(activity, scope) { release ->

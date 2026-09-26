@@ -107,14 +107,19 @@ class MainActivity : AppCompatActivity() {
     private var remoteSuggestQuery: String = ""
 
     // ── Voice search ────────────────────────────────────────────────
+    /** Ai chờ chữ từ hộp thoại giọng nói của hệ thống (đường dự phòng). */
+    private var voiceDialogCallback: ((String) -> Unit)? = null
+
     private val voiceSearchLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         val text = result.data
             ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
             ?.firstOrNull()
+        val callback = voiceDialogCallback
+        voiceDialogCallback = null
         if (result.resultCode == RESULT_OK && !text.isNullOrBlank()) {
-            handleVoiceResult(text)
+            if (callback != null) callback(text) else handleVoiceResult(text)
         }
     }
 
@@ -157,9 +162,15 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Bàn phím mở thì co nội dung lên trên nó (edge-to-edge của Android 15
+        // không tự làm) — nếu không, bảng gợi ý tìm kiếm bị bàn phím đè mất.
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            v.setPadding(
+                systemBars.left, systemBars.top, systemBars.right,
+                maxOf(systemBars.bottom, ime.bottom)
+            )
             insets
         }
 
@@ -287,25 +298,10 @@ class MainActivity : AppCompatActivity() {
             onPlay = { item -> playTrack(item) },
             onPlaylist = { playlist -> openPlaylist(playlist) },
             carDisplay = isCarDisplay(),
-            onVoice = { onText -> listenOnce(onText) }
+            onVoice = { onText -> listenVoice(resumeAfter = true) { text, _ -> onText(text) } }
         )
         sheet.onLibraryChanged = { driveMode?.refreshFavorite() }
         sheet.show()
-    }
-
-    /** Nghe một câu cho ô tìm của bảng thư viện (không tự phát như nút mic chính). */
-    private fun listenOnce(onText: (String) -> Unit) {
-        val canRecord = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
-            PackageManager.PERMISSION_GRANTED
-        if (!canRecord || !voiceListener.isAvailable) {
-            Toast.makeText(this, R.string.voice_search_unavailable, Toast.LENGTH_SHORT).show()
-            return
-        }
-        Toast.makeText(this, R.string.voice_search_prompt, Toast.LENGTH_SHORT).show()
-        voiceListener.listen(
-            onResult = onText,
-            onFail = { Toast.makeText(this, R.string.voice_not_heard, Toast.LENGTH_SHORT).show() }
-        )
     }
 
     private fun playTrack(item: VideoItem) {
@@ -619,28 +615,57 @@ class MainActivity : AppCompatActivity() {
         else if (a > 0) editable.delete(a - 1, a)
     }
 
-    /**
-     * Nghe một câu nói rồi xử lý luôn. Nghe thẳng bằng SpeechRecognizer (không
-     * cần hộp thoại — hộp thoại hệ thống không hiện được trên màn hình xe);
-     * máy không có dịch vụ nhận dạng thì mới rơi về hộp thoại cũ.
-     */
+    /** Nút mic chính: nghe một câu rồi xử lý luôn (lệnh hoặc tìm và phát). */
     private fun startVoiceSearch() {
-        val canRecord = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
-            PackageManager.PERMISSION_GRANTED
-        if (canRecord && voiceListener.isAvailable) {
-            Toast.makeText(this, R.string.voice_search_prompt, Toast.LENGTH_SHORT).show()
-            voiceListener.listen(
-                onResult = { text -> handleVoiceResult(text) },
-                onFail = {
-                    Toast.makeText(this, R.string.voice_not_heard, Toast.LENGTH_SHORT).show()
-                }
-            )
-            return
-        }
-        startVoiceSearchDialog()
+        listenVoice(resumeAfter = false) { text, wasPlaying -> handleVoiceResult(text, wasPlaying) }
     }
 
-    private fun startVoiceSearchDialog() {
+    /**
+     * Nghe một câu. Nghe thẳng bằng SpeechRecognizer (hộp thoại hệ thống không
+     * hiện được trên màn hình xe); không có quyền mic / dịch vụ nhận dạng, hoặc
+     * dịch vụ hỏng, thì mới dùng hộp thoại của hệ thống (trừ trên màn hình xe).
+     *
+     * Nhạc đang phát bị **tạm dừng trong lúc nghe**: qua loa xe, tiếng nhạc lọt
+     * vào mic và máy không nghe ra lời. [resumeAfter] = phát lại sau khi nghe
+     * xong; nút mic chính tự quyết (câu nói có thể là "dừng nhạc").
+     *
+     * @param onText chữ nghe được + nhạc có đang phát trước khi nghe không.
+     */
+    private fun listenVoice(resumeAfter: Boolean, onText: (String, Boolean) -> Unit) {
+        val canRecord = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        if (!canRecord || !voiceListener.isAvailable) {
+            startVoiceSearchDialog { text -> onText(text, false) }
+            return
+        }
+        PlayerController.queryState { state ->
+            val wasPlaying = state.playing
+            if (wasPlaying) PlayerController.pause()
+            Toast.makeText(this, R.string.voice_search_prompt, Toast.LENGTH_SHORT).show()
+            voiceListener.listen(
+                onResult = { text ->
+                    if (wasPlaying && resumeAfter) PlayerController.play()
+                    onText(text, wasPlaying)
+                },
+                onFail = { code ->
+                    if (wasPlaying) PlayerController.play()
+                    when {
+                        VoiceListener.isNoSpeech(code) -> Toast.makeText(
+                            this, R.string.voice_not_heard, Toast.LENGTH_SHORT
+                        ).show()
+                        // Dịch vụ hỏng: trên điện thoại thử hộp thoại của hệ thống.
+                        !isCarDisplay() -> startVoiceSearchDialog { text -> onText(text, false) }
+                        else -> Toast.makeText(
+                            this, getString(R.string.voice_error_code, code), Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            )
+        }
+    }
+
+    private fun startVoiceSearchDialog(onText: (String) -> Unit) {
+        voiceDialogCallback = onText
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
@@ -650,6 +675,7 @@ class MainActivity : AppCompatActivity() {
             putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.voice_search_prompt))
         }
         runCatching { voiceSearchLauncher.launch(intent) }.onFailure {
+            voiceDialogCallback = null
             Toast.makeText(this, R.string.voice_search_unavailable, Toast.LENGTH_SHORT).show()
         }
     }
@@ -659,14 +685,21 @@ class MainActivity : AppCompatActivity() {
      * còn lại là tìm kiếm — và **phát luôn bài đầu tiên**, vì đọc lệnh thường là
      * lúc đang lái, không rảnh tay chọn trong trang kết quả.
      */
-    private fun handleVoiceResult(spoken: String) {
+    private fun handleVoiceResult(spoken: String, wasPlaying: Boolean = false) {
         if (!DriveSettings.isOn(this, DriveSettings.KEY_VOICE_COMMANDS)) {
             voiceSearchAndPlay(spoken)
             return
         }
+        // listenVoice đã tạm dừng nhạc: chuyển bài thì cho phát tiếp như trước.
         when (val action = VoiceCommands.parse(spoken)) {
-            is VoiceCommands.Action.Next -> PlayerController.next()
-            is VoiceCommands.Action.Previous -> PlayerController.previous()
+            is VoiceCommands.Action.Next -> {
+                if (wasPlaying) PlayerController.play()
+                PlayerController.next()
+            }
+            is VoiceCommands.Action.Previous -> {
+                if (wasPlaying) PlayerController.play()
+                PlayerController.previous()
+            }
             is VoiceCommands.Action.Pause -> PlayerController.pause()
             is VoiceCommands.Action.Resume -> PlayerController.play()
             is VoiceCommands.Action.OpenPlaylist -> openPlaylist(action.playlist)
@@ -741,6 +774,16 @@ class MainActivity : AppCompatActivity() {
         } else emptyList()
 
         val inflater = layoutInflater
+        // Đang gõ thì gợi ý của YouTube lên đầu — đó mới là thứ đang tìm; để
+        // dưới lịch sử thì bị bàn phím che mất.
+        if (remote.isNotEmpty()) {
+            addSuggestionHeader(
+                inflater, list, getString(R.string.search_suggestions_online), null, null
+            )
+            for (item in remote) {
+                addSuggestionRow(inflater, list, item, isRecent = false, isPinned = false)
+            }
+        }
         if (history.isNotEmpty()) {
             addSuggestionHeader(
                 inflater, list, getString(R.string.search_recent),
@@ -754,14 +797,6 @@ class MainActivity : AppCompatActivity() {
                     inflater, list, item, isRecent = true,
                     isPinned = pinned.any { it.equals(item, ignoreCase = true) }
                 )
-            }
-        }
-        if (remote.isNotEmpty()) {
-            addSuggestionHeader(
-                inflater, list, getString(R.string.search_suggestions_online), null, null
-            )
-            for (item in remote) {
-                addSuggestionRow(inflater, list, item, isRecent = false, isPinned = false)
             }
         }
         if (suggestions.isNotEmpty()) {
