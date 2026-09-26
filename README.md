@@ -8,9 +8,10 @@
 
 - ✅ **Android Auto khi xe đang chạy**: dùng giao diện media chuẩn của Android Auto (Yêu thích · Danh sách · Vừa nghe · Tìm kiếm), chạm một lần là phát.
 - 🎙️ **Tìm và phát bằng giọng nói**: nói tên bài, ca sĩ hoặc thể loại, app phát ngay bài đầu tiên và xếp các bài sau vào hàng chờ.
-- 🎬 **Bật/tắt video**: bật để xem video như YouTube; tắt để chỉ nghe, màn hình hiện **đĩa nhạc quay** kèm ảnh bìa, lại đỡ tốn 3G/4G.
-- 🚀 **Hiện tốc độ xe**: số km/h thật to, đo bằng GPS, thay cho đĩa nhạc.
-- 🖼️ **Hình nền HD cho màn phát**: Đường đêm · Cực quang · Hoàng hôn, thay cho ảnh bìa bài hát.
+- 🎬 **Bật/tắt video**: bật để xem video như YouTube; tắt để chỉ nghe, màn hình hiện **ảnh nền dịu mắt** thay cho ảnh bìa, lại đỡ tốn 3G/4G.
+- 🖼️ **10 ảnh nền HD** (5 tối, 5 sáng), màu dịu, không chói, không phân tâm khi lái.
+- 🔎 **Tìm bài rồi thêm vào hàng chờ**: bấm + ở bài muốn nghe, nghe lần lượt.
+- 🔔 **Tự báo có bản mới**: cập nhật ngay trong Cài đặt, không phải lên GitHub tải tay.
 - 🔇 **Không quảng cáo**: chặn từ gốc, bài vào luôn không phải chờ.
 - 📱 **Phát nền, tắt màn hình vẫn nghe**, có bong bóng nổi để điều khiển trên Google Maps.
 - 🚗 **Chế độ lái**: nút to, nền tối, nút vô lăng chuyển bài được.
@@ -38,9 +39,11 @@ Từ 2.4.0, app phát được **mà không cần mở trên điện thoại**. 
 
 **Nói xong mà không tìm gì?** Đã sửa ở 2.4.0: câu nói được nhận ngay trong app, không qua hộp thoại riêng (hộp thoại này hay không hiện được trên màn hình xe), rồi phát bài đầu tiên luôn.
 
-**App có hiện được tốc độ xe không?** Có. Vào Cài đặt (chạm logo) → bật **Hiện tốc độ xe**, cho phép quyền vị trí. Tốc độ đo bằng **GPS của điện thoại** (Android Auto không cho app nhạc đọc tốc độ từ xe), nên có thể lệch vài km/h so với đồng hồ xe. GPS chỉ chạy khi màn hình app đang hiện.
+**Đổi ảnh nền màn phát?** Cài đặt (chạm logo) → **Hình nền** → chạm một trong 10 ảnh. Tối: Biển đêm · Núi đêm · Cực quang · Rừng chiều · Than chì. Sáng: Sương sớm · Đồi cát · Bạc hà · Hoàng hôn dịu · Trời mây. Ảnh có sẵn trong app, không tải qua mạng.
 
-**Đổi hình nền màn phát?** Cài đặt → **Hình nền** → chọn Đường đêm, Cực quang hoặc Hoàng hôn (ảnh HD có sẵn trong app, không tải qua mạng). Chọn *Ảnh bài hát* để quay lại đĩa nhạc như cũ.
+**Xếp nhiều bài để nghe lần lượt?** Bấm nút **thư viện** cạnh ô tìm (hoặc nút Hàng chờ trong Chế độ lái) → mục **Tìm** → gõ tên bài → bấm **+** ở từng bài. Chạm vào bài là phát ngay.
+
+**Cập nhật bản mới thế nào?** Có bản mới trên GitHub thì lúc mở app sẽ có một dòng thông báo. Vào Cài đặt → **Cập nhật lên bản …** (ngay trên phần Giới thiệu), app tự tải rồi mở màn cài đặt. Lần đầu Android sẽ hỏi cho phép DriveTune cài ứng dụng, bấm cho phép.
 
 **Tốn dữ liệu di động không?** Tắt *Hiện video* và bật *Tiết kiệm dữ liệu* trong Cài đặt (chạm logo). Khi đó mất khoảng 90 MB mỗi giờ.
 
@@ -51,7 +54,7 @@ Từ 2.4.0, app phát được **mà không cần mở trên điện thoại**. 
 Ứng dụng Android bọc WebView phát **YouTube / YouTube Music dạng audio-first**, làm riêng cho lúc lái xe — **Chế độ lái** nút to chữ rõ, thư viện Yêu thích / Hàng chờ / Danh sách dựng sẵn, nghe tiếp từ chỗ đang dở, lệnh nói, chạy nhạc nền, chặn quảng cáo, và **chạy được trên Android Auto** (cả giao diện media chuẩn lẫn chiếu màn hình).
 
 - Package: `com.gsvn.aamusic`
-- minSdk 35 · targetSdk 36 · versionName 2.5.0
+- minSdk 35 · targetSdk 36 · versionName 2.6.0
 - Ngôn ngữ: Kotlin + WebView (không dùng thư viện player riêng)
 
 > ⚠️ Dự án mang tính học tập / cá nhân. Việc bọc YouTube trong WebView, chặn quảng cáo và giả dạng app điều hướng để lên Android Auto có thể vi phạm ToS của YouTube/Google. Tự chịu trách nhiệm khi dùng.
@@ -62,7 +65,7 @@ Từ 2.4.0, app phát được **mà không cần mở trên điện thoại**. 
 
 1. [Kiến trúc tổng quan](#kiến-trúc-tổng-quan)
 2. [Các kỹ thuật cốt lõi](#các-kỹ-thuật-cốt-lõi)
-   - [1. Bật/tắt video – đĩa nhạc quay](#1-bậttắt-video--đĩa-nhạc-quay)
+   - [1. Bật/tắt video – ảnh nền](#1-bậttắt-video--ảnh-nền)
    - [2. Phát nền khi tắt màn hình / chuyển app (spoof visibility)](#2-phát-nền-khi-tắt-màn-hình--chuyển-app-spoof-visibility)
    - [3. Foreground service + WakeLock + AudioFocus](#3-foreground-service--wakelock--audiofocus)
    - [4. MediaSession + nút chuyển bài trên vô lăng](#4-mediasession--nút-chuyển-bài-trên-vô-lăng)
@@ -114,7 +117,7 @@ App chỉ là một `WebView` full-screen trỏ vào YouTube Music, cộng thêm
 | [PlaybackHost.kt](app/src/main/java/com/gsvn/aamusic/player/PlaybackHost.kt) | Luôn có WebView để phát (dựng ngầm khi app chưa mở) + nhịp poll chung |
 | [YouTubeSearch.kt](app/src/main/java/com/gsvn/aamusic/data/YouTubeSearch.kt) | Tìm bài native (InnerTube) cho Android Auto và lệnh nói |
 | [ArtworkProvider.kt](app/src/main/java/com/gsvn/aamusic/player/ArtworkProvider.kt) | Ảnh bìa `content://` cho màn hình xe |
-| [VideoMode.kt](app/src/main/java/com/gsvn/aamusic/web/VideoMode.kt) | Bật/tắt video, đĩa nhạc quay |
+| [VideoMode.kt](app/src/main/java/com/gsvn/aamusic/web/VideoMode.kt) | Bật/tắt video, ảnh nền màn phát |
 | [VoiceListener.kt](app/src/main/java/com/gsvn/aamusic/voice/VoiceListener.kt) | Nghe giọng nói ngay trong app (SpeechRecognizer) |
 | [VoiceCommands.kt](app/src/main/java/com/gsvn/aamusic/voice/VoiceCommands.kt) | Hiểu câu nói thành thao tác |
 | [SettingsSheet.kt](app/src/main/java/com/gsvn/aamusic/ui/SettingsSheet.kt) | Cài đặt + giới thiệu |
@@ -124,19 +127,16 @@ App chỉ là một `WebView` full-screen trỏ vào YouTube Music, cộng thêm
 
 ## Các kỹ thuật cốt lõi
 
-### 1. Bật/tắt video – đĩa nhạc quay
+### 1. Bật/tắt video – ảnh nền
 
 App **không** dùng player audio riêng; nó vẫn phát thẻ `<video>` của YouTube. Công tắc **Hiện video** trong Cài đặt ([VideoMode](app/src/main/java/com/gsvn/aamusic/web/VideoMode.kt)) quyết định cách hiển thị:
 
-- **Tắt** (mặc định): gắn class `yta-audio-only` lên `<html>`. Class này **ẩn bề mặt video bằng CSS** (`visibility: hidden`, không dùng `display: none`, để video vẫn decode và phát tiếng) và hiện một **đĩa nhạc** có ảnh bìa ở giữa. Đĩa quay khi đang phát, đứng yên khi dừng. Luồng hình bị ép xuống 144p nếu bật *Tiết kiệm dữ liệu*.
+- **Tắt** (mặc định): gắn class `yta-audio-only` lên `<html>`. Class này **ẩn bề mặt video bằng CSS** (`visibility: hidden`, không dùng `display: none`, để video vẫn decode và phát tiếng) và phủ kín khung phát bằng **ảnh nền** người dùng chọn — không hiện ảnh bìa bài hát, để màn hình yên, không đổi màu theo từng bài. Luồng hình bị ép xuống 144p nếu bật *Tiết kiệm dữ liệu*.
 - **Bật**: hiện video như YouTube và bỏ ép chất lượng.
 
-Đổi công tắc chỉ đổi một class CSS, không nạp lại trang, nên nhạc không bị ngắt. Đĩa được chèn ngay sau khung video trong `#movie_player`, không đặt `z-index`, và có `pointer-events: none`. Vì vậy nút điều khiển của trình phát vẫn nằm trên đĩa và vẫn bấm được.
+Đổi công tắc chỉ đổi một class CSS, không nạp lại trang, nên nhạc không bị ngắt. Lớp ảnh nền được chèn ngay sau khung video trong `#movie_player`, không đặt `z-index`, và có `pointer-events: none`. Vì vậy nút điều khiển của trình phát vẫn nằm trên và vẫn bấm được.
 
-Chỗ của đĩa còn nhận hai tuỳ chọn (cũng áp vào ô ảnh bìa của Chế độ lái):
-
-- **Hình nền** ([PlayerBackgrounds](app/src/main/java/com/gsvn/aamusic/data/PlayerBackgrounds.kt)): 3 ảnh JPEG 1920×1080 trong `res/drawable-nodpi`. Trang nạp ảnh qua đường dẫn giả `<origin>/__drivetune/bg/<id>.jpg`; `shouldInterceptRequest` trả thẳng từ tài nguyên của app, cùng origin nên không vướng CSP, không nhân đôi tệp.
-- **Tốc độ xe** ([SpeedMeter](app/src/main/java/com/gsvn/aamusic/car/SpeedMeter.kt)): `LocationManager.GPS_PROVIDER` mỗi giây, `Location.speed × 3,6`, dưới 3 km/h hiện 0, mất tín hiệu quá 6 giây hiện `--`. Chỉ chạy giữa `onResume`/`onPause` của MainActivity. Số được đẩy vào trang bằng `window.__ytaShowSpeed(kmh)`; cỡ chữ theo `cqh` (container query) nên luôn chiếm khoảng nửa chiều cao khung phát.
+[PlayerBackgrounds](app/src/main/java/com/gsvn/aamusic/data/PlayerBackgrounds.kt): 10 ảnh JPEG 1920×1080 (~40–70 KB mỗi ảnh) trong `res/drawable-nodpi`, cố ý tương phản thấp và ít chi tiết. Trang nạp ảnh qua đường dẫn giả `<origin>/__drivetune/bg/<id>.jpg`; `shouldInterceptRequest` trả thẳng từ tài nguyên của app, cùng origin nên không vướng CSP, không nhân đôi tệp. Ô ảnh lớn của Chế độ lái dùng cùng ảnh đó.
 
 ### 2. Phát nền khi tắt màn hình / chuyển app (spoof visibility)
 
@@ -328,6 +328,8 @@ Vài điểm đáng nói:
 
 ### 14. Thư viện: yêu thích, hàng chờ, vừa nghe
 
+Bảng thư viện ([LibrarySheet](app/src/main/java/com/gsvn/aamusic/ui/LibrarySheet.kt)) có mục **Tìm**: gọi [YouTubeSearch](app/src/main/java/com/gsvn/aamusic/data/YouTubeSearch.kt) (cùng đường tìm của Android Auto), mỗi kết quả có nút + để `DriveLibrary.enqueue`, chạm hàng thì phát ngay. Mở từ nút thư viện trên thanh tìm hoặc nút Hàng chờ trong Chế độ lái.
+
 [DriveLibrary](app/src/main/java/com/gsvn/aamusic/data/DriveLibrary.kt) lưu JSON trong `SharedPreferences`, tái dùng model [VideoItem](app/src/main/java/com/gsvn/aamusic/data/VideoItem.kt) vốn đã có sẵn khả năng ser/de.
 
 Mỗi mục chỉ là **dấu trang do người dùng tạo ra trong lúc dùng app**: id video đang mở cùng tên bài mà trình phát đang hiển thị — đúng thứ [PlayerController.queryState](app/src/main/java/com/gsvn/aamusic/player/PlayerController.kt) vẫn đọc để bơm vào phiên media. Không có chỗ nào duyệt hay rút dữ liệu của YouTube.
@@ -391,6 +393,10 @@ Cố tình dừng ở mức bảng từ khoá, không phải trợ lý. Hai ch�
 
 ---
 
+### 19. Cập nhật trong app
+
+[AppUpdate](app/src/main/java/com/gsvn/aamusic/data/AppUpdate.kt) hỏi `api.github.com/repos/mjnamjkaze/DriveTune/releases/latest` lúc mở app (tối đa 6 giờ một lần), so `tag_name` với `versionName` theo từng số, lưu kết quả vào `SharedPreferences`. Có bản mới thì báo một toast (mỗi bản một lần, không báo trên màn hình xe), và Cài đặt hiện dòng **Cập nhật lên bản …** ngay trên Giới thiệu. Chạm vào: `DownloadManager` tải asset `.apk` của release, xong thì mở `ACTION_VIEW` với `application/vnd.android.package-archive` (cần `REQUEST_INSTALL_PACKAGES`); lỗi bước nào thì mở link APK bằng trình duyệt. Mỗi release phải đính kèm file `.apk` ký cùng khoá thì mới cài đè được.
+
 ## Bí quyết lên được Android Auto
 
 Android Auto (chiếu điện thoại lên màn hình xe) **chỉ cho phép** các loại app: media, messaging, navigation/point-of-interest… và **không có** hạng mục "trình duyệt WebView". Vì vậy app **giả dạng app điều hướng/bản đồ** để được chiếu lên màn xe.
@@ -444,7 +450,7 @@ Các chi tiết khác:
 - Tải `DriveTune-<version>.apk` ở trang [Releases](https://github.com/mjnamjkaze/DriveTune/releases/latest), copy vào máy và cài (cho phép "Cài từ nguồn không xác định" khi được hỏi), **hoặc**
 - Cài qua ADB:
   ```bash
-  adb install -r DriveTune-2.5.0.apk
+  adb install -r DriveTune-2.6.0.apk
   ```
 
 ### Bước 2 — Bật Developer mode trong app Android Auto

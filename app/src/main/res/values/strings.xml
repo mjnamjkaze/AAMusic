@@ -25,6 +25,9 @@
     <string name="about_org">Gosei Việt Nam</string>
     <string name="about_tagline">App cộng đồng</string>
     <string name="about_link">gosei.com.vn</string>
+    <string name="update_row">Cập nhật lên bản %1$s</string>
+    <string name="update_downloading">Đang tải bản %1$s… xong sẽ hỏi cài đặt</string>
+    <string name="update_available_toast">Có DriveTune %1$s mới — chạm logo để cập nhật</string>
 
     <string name="bubble_playing">Đang phát</string>
     <string name="bubble_prev">Bài trước</string>
@@ -41,8 +44,6 @@
     <string name="drive_mode_title">DRIVETUNE</string>
     <string name="drive_mode_open">Chế độ lái</string>
     <string name="drive_mode_exit">Thoát chế độ lái</string>
-    <string name="drive_speed_unknown">--</string>
-    <string name="drive_speed_unit">km/h</string>
     <string name="drive_nothing_playing">Chưa phát bài nào</string>
     <string name="drive_unknown_track">Không rõ tên bài</string>
     <string name="drive_play">Phát</string>
@@ -58,12 +59,19 @@
     <string name="drive_queued">Đã thêm vào hàng chờ</string>
 
     <!-- ── Thư viện ── -->
+    <string name="library_tab_search">Tìm</string>
     <string name="library_tab_queue">Hàng chờ</string>
+    <string name="library_open">Thư viện và hàng chờ</string>
+    <string name="library_search_hint">Tên bài, ca sĩ…</string>
+    <string name="library_search_empty">Tìm bài rồi bấm + để thêm vào hàng chờ.</string>
+    <string name="library_searching">Đang tìm…</string>
+    <string name="library_search_none">Không tìm thấy bài nào.</string>
+    <string name="library_search_error">Không tìm được, kiểm tra mạng rồi thử lại.</string>
     <string name="library_tab_favorites">Yêu thích</string>
     <string name="library_tab_recent">Vừa nghe</string>
     <string name="library_tab_playlists">Danh sách</string>
     <string name="library_empty_queue">Hàng chờ đang trống.
-Bấm biểu tượng + ở Yêu thích hoặc Vừa nghe để xếp bài.</string>
+Vào mục Tìm, bấm + ở bài muốn nghe để xếp vào đây.</string>
     <string name="library_empty_favorites">Chưa có bài yêu thích nào.
 Bấm hình trái tim trong chế độ lái để lưu bài đang nghe.</string>
     <string name="library_empty_recent">Chưa nghe bài nào.</string>
@@ -119,15 +127,19 @@ Bấm hình trái tim trong chế độ lái để lưu bài đang nghe.</string
     <string name="settings_car_resume">Tự phát khi nối với xe</string>
     <string name="settings_voice">Hiểu lệnh nói</string>
     <string name="settings_data_saver">Tiết kiệm dữ liệu (chỉ tải tiếng)</string>
-    <string name="settings_show_video">Hiện video (tắt: chỉ nghe, hiện đĩa nhạc quay)</string>
-    <string name="settings_show_speed">Hiện tốc độ xe (số to, thay đĩa nhạc)</string>
-    <string name="settings_speed_permission_denied">Cần quyền vị trí (GPS) để đo tốc độ xe</string>
+    <string name="settings_show_video">Hiện video (tắt: chỉ nghe, hiện ảnh nền)</string>
     <string name="settings_player_bg_title">Hình nền màn phát</string>
     <string name="settings_player_bg_value">Hình nền: %1$s</string>
-    <string name="bg_none">Ảnh bài hát</string>
-    <string name="bg_night_drive">Đường đêm</string>
+    <string name="bg_night_sea">Biển đêm</string>
+    <string name="bg_mountain_night">Núi đêm</string>
     <string name="bg_aurora">Cực quang</string>
-    <string name="bg_sunset">Hoàng hôn</string>
+    <string name="bg_forest_dusk">Rừng chiều</string>
+    <string name="bg_graphite">Than chì</string>
+    <string name="bg_morning_mist">Sương sớm</string>
+    <string name="bg_dunes">Đồi cát</string>
+    <string name="bg_mint">Bạc hà</string>
+    <string name="bg_pastel_sunset">Hoàng hôn dịu</string>
+    <string name="bg_cloud_sky">Trời mây</string>
     <string name="settings_force_dark">Luôn dùng nền tối</string>
     <string name="settings_default_playlist">Danh sách mặc định</string>
     <string name="settings_default_playlist_none">Chưa đặt</string>

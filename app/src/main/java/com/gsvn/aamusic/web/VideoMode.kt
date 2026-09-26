@@ -8,55 +8,44 @@ import com.gsvn.aamusic.data.PlayerBackgrounds
 /**
  * Công tắc "Hiện video".
  *
- *  - **Tắt** (mặc định, như trước giờ): khung hình video bị ẩn, chỗ trình phát
- *    hiện một đĩa nhạc với ảnh bìa bài ở giữa, quay khi đang phát và đứng yên
- *    khi dừng. Luồng hình vẫn ép xuống 144p nếu bật tiết kiệm dữ liệu.
+ *  - **Tắt** (mặc định): khung hình video bị ẩn, chỗ trình phát phủ kín một
+ *    **ảnh nền** người dùng chọn ([PlayerBackgrounds]) — không hiện ảnh bìa
+ *    bài hát, cho màn hình yên, không đổi màu theo từng bài. Luồng hình vẫn ép
+ *    xuống 144p nếu bật tiết kiệm dữ liệu.
  *  - **Bật**: trang hiện video y như YouTube, và không ép chất lượng nữa —
  *    xem video 144p thì chẳng khác gì không xem.
  *
  * Chỉ đổi giao diện trong trang (một lớp CSS trên `<html>`), không nạp lại
  * trang nên bật/tắt giữa bài không làm nhạc ngắt.
- *
- * Chỗ của đĩa nhạc còn nhận thêm hai tuỳ chọn:
- *  - **Hình nền** ([PlayerBackgrounds]): ảnh HD phủ kín khung thay cho đĩa
- *    và ảnh bìa bài hát.
- *  - **Tốc độ xe**: số km/h thật to giữa khung (đè lên hình nền nếu có),
- *    thay cho đĩa nhạc. Số do MainActivity đẩy vào qua [showSpeed].
  */
 object VideoMode {
 
-    /** Áp các tuỳ chọn liên quan (video, tiết kiệm dữ liệu, hình nền, tốc độ) lên [webView]. */
+    /** Áp các tuỳ chọn liên quan (video, tiết kiệm dữ liệu, ảnh nền) lên [webView]. */
     fun applyPrefs(context: Context, webView: WebView?) {
         val view = webView ?: return
         val showVideo = DriveSettings.isOn(context, DriveSettings.KEY_SHOW_VIDEO)
         val dataSaver = DriveSettings.isOn(context, DriveSettings.KEY_DATA_SAVER)
-        val showSpeed = DriveSettings.isOn(context, DriveSettings.KEY_SHOW_SPEED)
-        // Chỉ nhận id có thật — chuỗi này được ghép thẳng vào JS.
-        val bg = PlayerBackgrounds.byId(DriveSettings.playerBackground(context))?.id.orEmpty()
+        // Id lấy từ danh sách cố định — an toàn để ghép thẳng vào JS.
+        val bg = PlayerBackgrounds.current(context).id
         view.evaluateJavascript(
             "window.__ytaShowVideo=$showVideo;" +
                 "document.documentElement.classList.toggle('yta-audio-only',${!showVideo});" +
-                "window.__ytaFace={bg:'$bg',speed:$showSpeed};" +
-                "window.__ytaApplyFace&&window.__ytaApplyFace();",
+                "window.__ytaBg='$bg';",
             null
         )
         PlaybackGuard.setDataSaver(view, dataSaver && !showVideo)
     }
 
-    /** Cập nhật số km/h trên trang; null = chưa có GPS, hiện "--". */
-    fun showSpeed(webView: WebView?, kmh: Int?) {
-        webView?.evaluateJavascript(
-            "window.__ytaShowSpeed&&window.__ytaShowSpeed(${kmh ?: -1});", null
-        )
-    }
-
     /**
-     * Cài đĩa nhạc vào trang. Chạy sau khi trang dựng xong (cùng chỗ với các
-     * script dọn giao diện khác); cờ `__ytaShowVideo` do [applyPrefs] đặt.
+     * Cài lớp ảnh nền vào trang. Chạy sau khi trang dựng xong (cùng chỗ với
+     * các script dọn giao diện khác); cờ `__ytaShowVideo`, `__ytaBg` do
+     * [applyPrefs] đặt.
      *
-     * Đĩa được chèn ngay sau khung video trong trình phát chính, không đặt
+     * Ảnh được chèn ngay sau khung video trong trình phát chính, không đặt
      * z-index: các nút điều khiển của trình phát đứng sau trong DOM nên vẫn
-     * nằm trên, và `pointer-events: none` để chạm xuyên qua như cũ.
+     * nằm trên, và `pointer-events: none` để chạm xuyên qua như cũ. Ảnh lấy từ
+     * `<origin>/__drivetune/bg/<id>.jpg` — ConfiguredWebView trả từ tài nguyên
+     * của app.
      */
     val JS = """
         (function() {
@@ -69,33 +58,9 @@ object VideoMode {
                 'html.yta-audio-only #player video, html.yta-audio-only .html5-video-player video,',
                 'html.yta-audio-only #song-video, html.yta-audio-only ytmusic-player #video,',
                 'html.yta-audio-only .video-stream { visibility: hidden !important; }',
-                '#yta-disc { display: none; position: absolute; left: 0; top: 0; right: 0; bottom: 0;',
-                '  align-items: center; justify-content: center;',
-                '  background: #000 center / cover no-repeat;',
-                '  container-type: size; pointer-events: none; }',
-                'html.yta-audio-only #yta-disc { display: flex; }',
-                '#yta-disc .yta-d { height: 86%; aspect-ratio: 1 / 1; border-radius: 50%;',
-                '  background: repeating-radial-gradient(circle, #101010 0 2px, #1d1d1d 2px 4px);',
-                '  box-shadow: 0 0 0 2px #2a2a2a, 0 6px 24px rgba(0,0,0,.6);',
-                '  display: flex; align-items: center; justify-content: center;',
-                '  animation: yta-spin 8s linear infinite; animation-play-state: paused; }',
-                '#yta-disc .yta-d.yta-on { animation-play-state: running; }',
-                '#yta-disc .yta-l { position: relative; width: 44%; height: 44%; border-radius: 50%;',
-                '  background: #333 center / cover no-repeat; box-shadow: 0 0 0 3px #000; }',
-                '#yta-disc .yta-l::after { content: ""; position: absolute; left: 50%; top: 50%;',
-                '  width: 12%; height: 12%; margin: -6% 0 0 -6%; border-radius: 50%; background: #000; }',
-                '@keyframes yta-spin { to { transform: rotate(360deg); } }',
-                '#yta-disc.yta-has-bg .yta-d, #yta-disc.yta-has-speed .yta-d { display: none; }',
-                '#yta-disc.yta-has-bg.yta-has-speed::before { content: ""; position: absolute;',
-                '  left: 0; top: 0; right: 0; bottom: 0; background: rgba(0,0,0,.35); }',
-                '#yta-disc .yta-s { display: none; position: relative; flex-direction: column;',
-                '  align-items: center; color: #fff; line-height: 1;',
-                '  font-family: Roboto, Arial, sans-serif; text-shadow: 0 2px 16px rgba(0,0,0,.7); }',
-                '#yta-disc.yta-has-speed .yta-s { display: flex; }',
-                '#yta-disc .yta-s b { font-size: 52cqh; font-weight: 800; letter-spacing: -0.03em;',
-                '  font-variant-numeric: tabular-nums; }',
-                '#yta-disc .yta-s i { font-size: 11cqh; font-style: normal; font-weight: 600;',
-                '  margin-top: 2cqh; opacity: .85; }'
+                '#yta-bg { display: none; position: absolute; left: 0; top: 0; right: 0; bottom: 0;',
+                '  background: #0a1022 center / cover no-repeat; pointer-events: none; }',
+                'html.yta-audio-only #yta-bg { display: block; }'
             ].join('\n');
             var style = document.createElement('style');
             style.textContent = css;
@@ -106,67 +71,28 @@ object VideoMode {
                 return document.querySelector('#movie_player video, .html5-video-player video');
             }
 
-            function videoId() {
-                try { return new URL(location.href).searchParams.get('v') || ''; }
-                catch (e) { return ''; }
-            }
-
-            var shownId = null;
-
-            // Hình nền + tốc độ theo window.__ytaFace (applyPrefs đặt). Chạy
-            // mỗi nhịp nên không phụ thuộc thứ tự nạp với applyPrefs.
-            function applyFace(disc) {
-                disc = disc || document.getElementById('yta-disc');
-                if (!disc) return;
-                var f = window.__ytaFace || {};
-                var url = f.bg ? location.origin + '/__drivetune/bg/' + f.bg + '.jpg' : '';
-                if (disc.__ytaBg !== url) {
-                    disc.__ytaBg = url;
-                    disc.style.backgroundImage = url ? 'url("' + url + '")' : '';
-                }
-                disc.classList.toggle('yta-has-bg', !!url);
-                disc.classList.toggle('yta-has-speed', !!f.speed);
-            }
-            window.__ytaApplyFace = function() { applyFace(null); };
-
-            function speedText() {
-                var k = window.__ytaSpeedKmh;
-                return (typeof k === 'number' && k >= 0) ? String(k) : '--';
-            }
-            window.__ytaShowSpeed = function(kmh) {
-                window.__ytaSpeedKmh = kmh;
-                var b = document.querySelector('#yta-disc .yta-s b');
-                if (b) b.textContent = speedText();
-            };
-
             setInterval(function() {
                 var v = mainVideo();
                 var player = v && v.closest && v.closest('#movie_player, .html5-video-player');
                 if (!player) return;
 
-                var disc = player.querySelector(':scope > #yta-disc');
-                if (!disc) {
-                    var old = document.getElementById('yta-disc');
+                var bg = player.querySelector(':scope > #yta-bg');
+                if (!bg) {
+                    var old = document.getElementById('yta-bg');
                     if (old) old.remove();
-                    disc = document.createElement('div');
-                    disc.id = 'yta-disc';
-                    disc.innerHTML = '<div class="yta-d"><div class="yta-l"></div></div>' +
-                        '<div class="yta-s"><b></b><i>km/h</i></div>';
-                    disc.querySelector('.yta-s b').textContent = speedText();
+                    bg = document.createElement('div');
+                    bg.id = 'yta-bg';
                     var box = player.querySelector(':scope > .html5-video-container');
-                    if (box && box.nextSibling) player.insertBefore(disc, box.nextSibling);
-                    else player.appendChild(disc);
-                    shownId = null;
+                    if (box && box.nextSibling) player.insertBefore(bg, box.nextSibling);
+                    else player.appendChild(bg);
                 }
 
-                var id = videoId();
-                if (id !== shownId) {
-                    shownId = id;
-                    disc.querySelector('.yta-l').style.backgroundImage =
-                        id ? 'url("https://i.ytimg.com/vi/' + id + '/mqdefault.jpg")' : '';
+                var url = window.__ytaBg
+                    ? location.origin + '/__drivetune/bg/' + window.__ytaBg + '.jpg' : '';
+                if (bg.__ytaUrl !== url) {
+                    bg.__ytaUrl = url;
+                    bg.style.backgroundImage = url ? 'url("' + url + '")' : '';
                 }
-                applyFace(disc);
-                disc.firstChild.classList.toggle('yta-on', !v.paused && !v.ended);
             }, 1000);
         })();
     """.trimIndent()

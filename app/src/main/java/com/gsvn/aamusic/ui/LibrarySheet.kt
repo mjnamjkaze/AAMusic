@@ -5,10 +5,14 @@ import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.gsvn.aamusic.R
 import com.gsvn.aamusic.data.DriveLibrary
@@ -16,13 +20,19 @@ import com.gsvn.aamusic.data.DrivePlaylist
 import com.gsvn.aamusic.data.DrivePlaylists
 import com.gsvn.aamusic.data.DriveSettings
 import com.gsvn.aamusic.data.VideoItem
+import com.gsvn.aamusic.data.YouTubeSearch
 import com.gsvn.aamusic.databinding.SheetQueueBinding
 import com.gsvn.aamusic.player.ArtworkCache
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 /**
- * Bảng thư viện: Hàng chờ · Yêu thích · Vừa nghe · Danh sách.
+ * Bảng thư viện: Tìm · Hàng chờ · Yêu thích · Vừa nghe · Danh sách.
  *
- * Gộp cả bốn vào một bảng trượt vì đang lái thì mỗi lần chuyển màn hình là một
+ * "Tìm" là đường thêm bài vào hàng chờ: gõ tên, bấm + ở bài muốn nghe; chạm
+ * vào bài thì phát ngay.
+ *
+ * Gộp tất cả vào một bảng trượt vì đang lái thì mỗi lần chuyển màn hình là một
  * lần rời mắt khỏi đường. Cách dựng hàng theo đúng lối `MainActivity` đang dùng
  * cho ô gợi ý tìm kiếm — inflate `item_*` rồi `addView` — thay vì kéo thêm
  * RecyclerView + adapter vào một dự án chưa dùng chúng ở đâu.
@@ -37,6 +47,7 @@ class LibrarySheet(
 ) {
 
     private enum class Tab(val labelRes: Int) {
+        SEARCH(R.string.library_tab_search),
         QUEUE(R.string.library_tab_queue),
         FAVORITES(R.string.library_tab_favorites),
         RECENT(R.string.library_tab_recent),
@@ -46,6 +57,12 @@ class LibrarySheet(
     private lateinit var binding: SheetQueueBinding
     private lateinit var dialog: BottomSheetDialog
     private var tab = Tab.QUEUE
+
+    // ── Mục Tìm ──
+    private var searchJob: Job? = null
+    private var results: List<VideoItem> = emptyList()
+    /** Chữ thay cho danh sách khi chưa có kết quả (gợi ý / đang tìm / lỗi). */
+    private var searchStatus: Int = R.string.library_search_empty
 
     /** Báo cho nơi gọi biết thư viện đã đổi, để nút Yêu thích vẽ lại. */
     var onLibraryChanged: (() -> Unit)? = null
@@ -60,8 +77,44 @@ class LibrarySheet(
         tab = if (DriveLibrary.queue(activity).isEmpty()) Tab.PLAYLISTS else Tab.QUEUE
 
         buildTabs()
+        setupSearch()
         render()
+        dialog.setOnDismissListener { searchJob?.cancel() }
         dialog.show()
+    }
+
+    private fun setupSearch() {
+        binding.searchField.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) { runSearch(); true } else false
+        }
+        binding.searchGo.setOnClickListener { runSearch() }
+    }
+
+    private fun runSearch() {
+        val query = binding.searchField.text?.toString().orEmpty().trim()
+        if (query.isEmpty()) return
+        val scope = (activity as? LifecycleOwner)?.lifecycleScope ?: return
+        hideKeyboard()
+        searchJob?.cancel()
+        results = emptyList()
+        searchStatus = R.string.library_searching
+        render()
+        searchJob = scope.launch {
+            val found = YouTubeSearch.search(query)
+            results = found.getOrDefault(emptyList())
+            searchStatus = when {
+                found.isFailure -> R.string.library_search_error
+                results.isEmpty() -> R.string.library_search_none
+                else -> 0
+            }
+            if (tab == Tab.SEARCH) render()
+        }
+    }
+
+    private fun hideKeyboard() {
+        val imm = activity.getSystemService(InputMethodManager::class.java)
+        imm?.hideSoftInputFromWindow(binding.searchField.windowToken, 0)
+        binding.searchField.clearFocus()
     }
 
     private fun buildTabs() {
@@ -88,8 +141,18 @@ class LibrarySheet(
     private fun render() {
         val list = binding.queueList
         list.removeAllViews()
+        binding.searchBox.visibility = if (tab == Tab.SEARCH) View.VISIBLE else View.GONE
 
         when (tab) {
+            Tab.SEARCH -> {
+                setAction(0, null)
+                setEmpty(if (results.isEmpty()) searchStatus else 0)
+                val inflater = activity.layoutInflater
+                for (item in results) {
+                    list.addView(buildTrackRow(inflater, list, item, onRemove = null))
+                }
+            }
+
             Tab.QUEUE -> renderTracks(
                 DriveLibrary.queue(activity),
                 emptyRes = R.string.library_empty_queue,
@@ -170,6 +233,9 @@ class LibrarySheet(
         } else {
             queueButton.setOnClickListener {
                 DriveLibrary.enqueue(activity, item)
+                // Tô màu nhấn để thấy bài nào đã thêm khi thêm liền nhiều bài.
+                queueButton.imageTintList =
+                    ColorStateList.valueOf(activity.getColor(R.color.drive_accent))
                 toast(R.string.drive_queued)
             }
         }

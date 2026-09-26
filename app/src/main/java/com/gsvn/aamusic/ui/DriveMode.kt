@@ -10,10 +10,7 @@ import android.widget.TextView
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.gsvn.aamusic.R
 import com.gsvn.aamusic.data.DriveLibrary
-import com.gsvn.aamusic.data.DriveSettings
-import com.gsvn.aamusic.data.PlayerBackground
 import com.gsvn.aamusic.data.PlayerBackgrounds
-import com.gsvn.aamusic.player.ArtworkCache
 import com.gsvn.aamusic.player.PlayerController
 
 /**
@@ -26,6 +23,9 @@ import com.gsvn.aamusic.player.PlayerController
  *
  * Lớp này chỉ vẽ; mọi lệnh phát đều đi qua [PlayerController] như phần còn lại
  * của app.
+ *
+ * Ô ảnh lớn luôn là ảnh nền người dùng chọn ([PlayerBackgrounds]), không phải
+ * ảnh bìa bài hát — ảnh bìa đổi liên tục, màu mè, dễ kéo mắt khi đang lái.
  */
 class DriveMode(
     private val activity: Activity,
@@ -41,17 +41,15 @@ class DriveMode(
     private val progress: LinearProgressIndicator = root.findViewById(R.id.driveProgress)
     private val playPause: ImageButton = root.findViewById(R.id.drivePlayPause)
     private val favorite: ImageButton = root.findViewById(R.id.driveFavorite)
-    private val speedBox: View = root.findViewById(R.id.driveSpeedBox)
-    private val speed: TextView = root.findViewById(R.id.driveSpeed)
 
     private val audioManager =
         activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-    /** Bài đang hiện trên màn hình — để biết khi nào cần đổi ảnh bìa. */
+    /** Bài đang hiện trên màn hình — để biết khi nào cần vẽ lại nút Yêu thích. */
     private var shownVideoId: String = ""
 
-    /** Hình nền người dùng chọn thay ảnh bìa; null = ảnh bài hát. */
-    private var background: PlayerBackground? = null
+    /** Ảnh nền đang hiện, để khỏi giải mã lại ảnh HD khi không đổi. */
+    private var shownBackground: Int = 0
 
     val isVisible: Boolean get() = root.visibility == View.VISIBLE
 
@@ -63,26 +61,15 @@ class DriveMode(
         root.findViewById<View>(R.id.driveQueue).setOnClickListener { onOpenLibrary() }
         root.findViewById<View>(R.id.driveVolume).setOnClickListener { showVolumePanel() }
         favorite.setOnClickListener { toggleFavorite() }
-        applyFacePrefs()
+        applyBackground()
     }
 
-    /**
-     * Đọc lại hai tuỳ chọn của ô ảnh bìa: hình nền và tốc độ xe. Gọi khi dựng
-     * và mỗi lần người dùng đổi trong Cài đặt.
-     */
-    fun applyFacePrefs() {
-        background = PlayerBackgrounds.byId(DriveSettings.playerBackground(activity))
-        val showSpeed = DriveSettings.isOn(activity, DriveSettings.KEY_SHOW_SPEED)
-        speedBox.visibility = if (showSpeed) View.VISIBLE else View.GONE
-        // Ảnh lùi ra sau cho số tốc độ nổi lên, vẫn thấy được hình nền.
-        artwork.alpha = if (showSpeed) SPEED_BACKDROP_ALPHA else 1f
-        renderArtwork(shownVideoId)
-    }
-
-    /** km/h từ GPS; null = chưa bắt được tín hiệu. */
-    fun showSpeed(kmh: Int?) {
-        val text = kmh?.toString() ?: activity.getString(R.string.drive_speed_unknown)
-        if (speed.text != text) speed.text = text
+    /** Vẽ ảnh nền theo Cài đặt › Hình nền. Gọi khi dựng và mỗi lần người dùng đổi. */
+    fun applyBackground() {
+        val res = PlayerBackgrounds.current(activity).drawableRes
+        if (res == shownBackground) return
+        shownBackground = res
+        artwork.setImageResource(res)
     }
 
     fun show() {
@@ -124,37 +111,8 @@ class DriveMode(
 
         if (state.videoId != shownVideoId) {
             shownVideoId = state.videoId
-            renderArtwork(state.videoId)
             renderFavorite(DriveLibrary.isFavorite(activity, state.videoId))
         }
-    }
-
-    private fun renderArtwork(videoId: String) {
-        background?.let { bg ->
-            artwork.imageTintList = null
-            artwork.clearColorFilter()
-            artwork.setImageResource(bg.drawableRes)
-            return
-        }
-        if (videoId.isBlank()) {
-            artwork.setImageResource(R.drawable.ic_music_note)
-            artwork.imageTintList = null
-            artwork.setColorFilter(activity.getColor(R.color.drive_text_dim))
-            return
-        }
-        ArtworkCache.cached(videoId)?.let { applyArtwork(videoId, it); return }
-        ArtworkCache.load(videoId) { bitmap -> applyArtwork(videoId, bitmap) }
-    }
-
-    private fun applyArtwork(videoId: String, bitmap: android.graphics.Bitmap) {
-        // Ảnh về muộn hơn lần chuyển bài kế tiếp thì bỏ, đừng dán nhầm bìa;
-        // đang dùng hình nền thì cũng bỏ.
-        if (shownVideoId != videoId || background != null) return
-        // app:tint trong layout là màu của ảnh giữ chỗ; còn để nguyên thì nó
-        // nhuộm luôn cả ảnh bìa thật.
-        artwork.imageTintList = null
-        artwork.clearColorFilter()
-        artwork.setImageBitmap(bitmap)
     }
 
     /** Gọi sau khi thư viện đổi ở nơi khác (bảng Hàng chờ) để nút đồng bộ lại. */
@@ -205,9 +163,5 @@ class DriveMode(
 
     private fun toast(resId: Int) {
         android.widget.Toast.makeText(activity, resId, android.widget.Toast.LENGTH_SHORT).show()
-    }
-
-    private companion object {
-        const val SPEED_BACKDROP_ALPHA = 0.4f
     }
 }

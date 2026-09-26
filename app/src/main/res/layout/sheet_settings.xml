@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Cài đặt. Cố tình ngắn: tám công tắc, hai dòng chọn (danh sách, hình nền),
+  Cài đặt. Cố tình ngắn: bảy công tắc, hai dòng chọn (danh sách, hình nền),
   một dòng dọn bộ nhớ, một dòng giới thiệu.
   Mỗi hàng cao 56dp trở lên để chạm được cả khi xe đang chạy.
 -->
@@ -63,11 +63,6 @@
             style="@style/DriveSettingsSwitch"
             android:text="@string/settings_show_video" />
 
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/switchShowSpeed"
-            style="@style/DriveSettingsSwitch"
-            android:text="@string/settings_show_speed" />
-
         <TextView
             android:id="@+id/playerBgRow"
             style="@style/DriveSettingsRow"
@@ -97,6 +92,17 @@
             android:layout_marginTop="8dp"
             android:layout_marginBottom="4dp"
             android:background="?attr/colorSurfaceVariant" />
+
+        <!-- ── Cập nhật: chỉ hiện khi GitHub có bản mới hơn (AppUpdate) ── -->
+        <TextView
+            android:id="@+id/updateRow"
+            style="@style/DriveSettingsRow"
+            android:drawablePadding="16dp"
+            android:textColor="?attr/colorPrimary"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:drawableStartCompat="@drawable/refresh_24px"
+            app:drawableTint="?attr/colorPrimary" />
 
         <!-- ── Giới thiệu ── -->
         <LinearLayout

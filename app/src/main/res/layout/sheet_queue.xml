@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Bảng thư viện: Hàng chờ · Yêu thích · Vừa nghe · Danh sách.
-  Một bảng cho cả bốn mục thay vì bốn màn hình — đang lái thì mỗi lần điều
+  Bảng thư viện: Tìm · Hàng chờ · Yêu thích · Vừa nghe · Danh sách.
+  Một bảng cho cả năm mục thay vì bốn màn hình — đang lái thì mỗi lần điều
   hướng là một lần rời mắt khỏi đường.
 
   Hàng được nạp lúc chạy vào [queueList] theo đúng lối MainActivity đang dùng
   cho ô gợi ý tìm kiếm (inflate item_* rồi addView).
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/drive_sheet_bg"
@@ -36,6 +37,48 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal" />
     </HorizontalScrollView>
+
+    <!-- ── Ô tìm (chỉ hiện ở mục Tìm) ── -->
+    <LinearLayout
+        android:id="@+id/searchBox"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="16dp"
+        android:background="@drawable/drive_search_bg"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <EditText
+            android:id="@+id/searchField"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@null"
+            android:hint="@string/library_search_hint"
+            android:imeOptions="actionSearch"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:maxLines="1"
+            android:paddingStart="20dp"
+            android:paddingEnd="8dp"
+            android:textColor="@color/drive_text"
+            android:textColorHint="@color/drive_text_dim"
+            android:textSize="16sp" />
+
+        <ImageButton
+            android:id="@+id/searchGo"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/library_tab_search"
+            android:padding="14dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/search_24px"
+            app:tint="@color/drive_text" />
+    </LinearLayout>
 
     <!-- ── Hành động của mục đang xem (xoá hàng chờ / xoá lịch sử) ── -->
     <TextView

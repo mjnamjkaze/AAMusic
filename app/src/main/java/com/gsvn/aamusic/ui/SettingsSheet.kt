@@ -6,14 +6,18 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.RadioButton
+import android.widget.ScrollView
+import android.widget.TextView
 import android.webkit.WebStorage
 import android.widget.CompoundButton
 import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.gsvn.aamusic.R
+import com.gsvn.aamusic.data.AppUpdate
 import com.gsvn.aamusic.data.DriveLibrary
 import com.gsvn.aamusic.data.DrivePlaylists
 import com.gsvn.aamusic.data.DriveSettings
@@ -37,10 +41,6 @@ class SettingsSheet(
 ) {
 
     private lateinit var binding: SheetSettingsBinding
-    private val switches = mutableMapOf<String, MaterialSwitch>()
-
-    /** Đang đồng bộ lại công tắc theo [DriveSettings]: đừng coi là người dùng bấm. */
-    private var syncing = false
 
     fun show() {
         binding = SheetSettingsBinding.inflate(activity.layoutInflater)
@@ -52,7 +52,6 @@ class SettingsSheet(
         bind(binding.switchCarResume, DriveSettings.KEY_CAR_AUTO_RESUME)
         bind(binding.switchVoice, DriveSettings.KEY_VOICE_COMMANDS)
         bind(binding.switchShowVideo, DriveSettings.KEY_SHOW_VIDEO)
-        bind(binding.switchShowSpeed, DriveSettings.KEY_SHOW_SPEED)
         bind(binding.switchDataSaver, DriveSettings.KEY_DATA_SAVER)
         bind(binding.switchForceDark, DriveSettings.KEY_FORCE_DARK)
 
@@ -60,78 +59,63 @@ class SettingsSheet(
         setupPlayerBackground()
         setupClearData()
         setupAbout()
+        setupUpdate()
 
         dialog.show()
     }
 
     private fun bind(switch: MaterialSwitch, key: String) {
-        switches[key] = switch
         switch.isChecked = DriveSettings.isOn(activity, key)
         switch.setOnCheckedChangeListener { _: CompoundButton, checked: Boolean ->
-            if (syncing) return@setOnCheckedChangeListener
             DriveSettings.set(activity, key, checked)
             onSettingChanged(key)
         }
     }
 
-    /**
-     * Gạt công tắc về đúng giá trị đang lưu — khi activity phải tự tắt một
-     * tuỳ chọn (vd. từ chối quyền vị trí thì tắt "Hiện tốc độ xe").
-     */
-    fun sync() {
-        if (!::binding.isInitialized) return
-        syncing = true
-        switches.forEach { (key, switch) -> switch.isChecked = DriveSettings.isOn(activity, key) }
-        syncing = false
-    }
-
-    /** Dòng "Hình nền"; chạm để chọn trong bảng có ảnh thu nhỏ. */
+    /** Dòng "Hình nền"; chạm để chọn trong lưới ảnh thu nhỏ. */
     private fun setupPlayerBackground() {
         renderPlayerBackground()
         binding.playerBgRow.setOnClickListener { showPlayerBackgroundPicker() }
     }
 
     private fun renderPlayerBackground() {
-        val current = PlayerBackgrounds.byId(DriveSettings.playerBackground(activity))
-        val name = activity.getString(current?.nameRes ?: R.string.bg_none)
+        val name = activity.getString(PlayerBackgrounds.current(activity).nameRes)
         binding.playerBgRow.text = activity.getString(R.string.settings_player_bg_value, name)
     }
 
+    /** Lưới 2 cột: chạm một ảnh là chọn luôn và đóng. */
     private fun showPlayerBackgroundPicker() {
-        val selected = DriveSettings.playerBackground(activity)
-        val list = LinearLayout(activity).apply {
+        val selected = PlayerBackgrounds.current(activity).id
+        val grid = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, 8.dp, 0, 8.dp)
+            setPadding(18.dp, 8.dp, 18.dp, 8.dp)
         }
         val dialog = MaterialAlertDialogBuilder(activity)
             .setTitle(R.string.settings_player_bg_title)
-            .setView(list)
+            .setView(ScrollView(activity).apply { addView(grid) })
             .create()
 
-        // Dòng đầu = không dùng hình nền (ảnh bài hát như cũ).
-        val options = listOf(Triple("", R.string.bg_none, 0)) +
-            PlayerBackgrounds.ALL.map { Triple(it.id, it.nameRes, it.drawableRes) }
-        for ((id, nameRes, drawableRes) in options) {
-            val row = activity.layoutInflater.inflate(R.layout.item_player_bg, list, false)
-            val thumb = row.findViewById<ImageView>(R.id.bgThumb)
-            if (drawableRes != 0) {
-                thumb.setImageBitmap(decodeThumb(drawableRes))
-            } else {
-                thumb.scaleType = ImageView.ScaleType.CENTER
-                thumb.setImageResource(R.drawable.ic_music_note)
-                thumb.setColorFilter(activity.getColor(R.color.drive_text_dim))
+        for (pair in PlayerBackgrounds.ALL.chunked(2)) {
+            val line = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
+            for (bg in pair) {
+                val tile = activity.layoutInflater.inflate(R.layout.item_player_bg, line, false)
+                tile.findViewById<ImageView>(R.id.bgThumb).setImageBitmap(decodeThumb(bg.drawableRes))
+                val isSelected = bg.id == selected
+                tile.findViewById<MaterialCardView>(R.id.bgCard).strokeWidth =
+                    if (isSelected) 3.dp else 0
+                tile.findViewById<TextView>(R.id.bgName).apply {
+                    setText(bg.nameRes)
+                    if (isSelected) setTypeface(typeface, android.graphics.Typeface.BOLD)
+                }
+                tile.setOnClickListener {
+                    DriveSettings.setPlayerBackground(activity, bg.id)
+                    renderPlayerBackground()
+                    onSettingChanged(DriveSettings.KEY_PLAYER_BG)
+                    dialog.dismiss()
+                }
+                line.addView(tile)
             }
-            row.findViewById<RadioButton>(R.id.bgName).apply {
-                setText(nameRes)
-                isChecked = id == selected
-            }
-            row.setOnClickListener {
-                DriveSettings.setPlayerBackground(activity, id)
-                renderPlayerBackground()
-                onSettingChanged(DriveSettings.KEY_PLAYER_BG)
-                dialog.dismiss()
-            }
-            list.addView(row)
+            grid.addView(line)
         }
         dialog.show()
     }
@@ -183,6 +167,24 @@ class SettingsSheet(
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(ABOUT_URL))
             runCatching { activity.startActivity(intent) }.onFailure {
                 Toast.makeText(activity, ABOUT_URL, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    /** Có bản mới trên GitHub thì hiện dòng "Cập nhật lên bản …" ngay trên Giới thiệu. */
+    private fun setupUpdate() {
+        val scope = (activity as? androidx.lifecycle.LifecycleOwner)?.lifecycleScope ?: return
+        AppUpdate.check(activity, scope) { release ->
+            if (release == null) return@check
+            binding.updateRow.visibility = android.view.View.VISIBLE
+            binding.updateRow.text = activity.getString(R.string.update_row, release.version)
+            binding.updateRow.setOnClickListener {
+                Toast.makeText(
+                    activity,
+                    activity.getString(R.string.update_downloading, release.version),
+                    Toast.LENGTH_LONG
+                ).show()
+                AppUpdate.download(activity, release)
             }
         }
     }
