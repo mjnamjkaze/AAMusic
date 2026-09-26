@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Cài đặt. Cố tình ngắn: bảy công tắc, hai dòng chọn (danh sách, hình nền),
-  một dòng dọn bộ nhớ, một dòng giới thiệu.
+  một dòng dọn bộ nhớ, một dòng ủng hộ tác giả.
   Mỗi hàng cao 56dp trở lên để chạm được cả khi xe đang chạy.
 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
@@ -104,7 +104,7 @@
             app:drawableStartCompat="@drawable/refresh_24px"
             app:drawableTint="?attr/colorPrimary" />
 
-        <!-- ── Giới thiệu ── -->
+        <!-- ── Ủng hộ tác giả (chuyển khoản VietQR) ── -->
         <LinearLayout
             android:id="@+id/aboutRow"
             android:layout_width="match_parent"
@@ -123,7 +123,7 @@
                 android:background="@drawable/bubble_circle_bg"
                 android:contentDescription="@null"
                 android:padding="8dp"
-                android:src="@drawable/ic_music_note"
+                android:src="@drawable/volunteer_activism_24px"
                 app:tint="#FFFFFFFF" />
 
             <LinearLayout
@@ -136,7 +136,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/about_org"
+                    android:text="@string/donate_title"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="15sp"
                     android:textStyle="bold" />
@@ -144,7 +144,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/about_tagline"
+                    android:text="@string/donate_subtitle"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="12sp" />
 
@@ -152,7 +152,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="@string/about_link"
+                    android:text="@string/donate_account_short"
                     android:textColor="?attr/colorPrimary"
                     android:textSize="12sp" />
             </LinearLayout>

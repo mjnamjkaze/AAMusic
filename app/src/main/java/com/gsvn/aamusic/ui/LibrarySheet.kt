@@ -11,8 +11,10 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.gsvn.aamusic.R
 import com.gsvn.aamusic.data.DriveLibrary
@@ -29,8 +31,10 @@ import kotlinx.coroutines.launch
 /**
  * Bảng thư viện: Tìm · Hàng chờ · Yêu thích · Vừa nghe · Danh sách.
  *
- * "Tìm" là đường thêm bài vào hàng chờ: gõ tên, bấm + ở bài muốn nghe; chạm
- * vào bài thì phát ngay.
+ * "Tìm" là đường thêm bài vào hàng chờ: gõ (hoặc nói) tên, bấm + ở bài muốn
+ * nghe; chạm vào bài thì phát ngay; kéo xuống cuối thì tải thêm trang sau.
+ * Trên màn hình Android Auto ô tìm dùng bàn phím của app ([CarKeyboard]) vì
+ * bàn phím hệ thống ở đó hiện bé tí.
  *
  * Gộp tất cả vào một bảng trượt vì đang lái thì mỗi lần chuyển màn hình là một
  * lần rời mắt khỏi đường. Cách dựng hàng theo đúng lối `MainActivity` đang dùng
@@ -39,11 +43,15 @@ import kotlinx.coroutines.launch
  *
  * @param onPlay     mở một bài (địa chỉ watch).
  * @param onPlaylist mở một danh sách dựng sẵn.
+ * @param carDisplay đang chiếu lên màn hình xe — dùng bàn phím của app.
+ * @param onVoice    nghe một câu rồi gọi lại với chữ nghe được; null = không có mic.
  */
 class LibrarySheet(
     private val activity: Activity,
     private val onPlay: (VideoItem) -> Unit,
-    private val onPlaylist: (DrivePlaylist) -> Unit
+    private val onPlaylist: (DrivePlaylist) -> Unit,
+    private val carDisplay: Boolean = false,
+    private val onVoice: (((String) -> Unit) -> Unit)? = null
 ) {
 
     private enum class Tab(val labelRes: Int) {
@@ -61,6 +69,11 @@ class LibrarySheet(
     // ── Mục Tìm ──
     private var searchJob: Job? = null
     private var results: List<VideoItem> = emptyList()
+    private var searchQuery: String = ""
+    /** Mã trang kết quả kế tiếp; null = hết hoặc chưa tìm. */
+    private var nextPage: String? = null
+    private var loadingMore = false
+    private var loadingRow: View? = null
     /** Chữ thay cho danh sách khi chưa có kết quả (gợi ý / đang tìm / lỗi). */
     private var searchStatus: Int = R.string.library_search_empty
 
@@ -80,6 +93,11 @@ class LibrarySheet(
         setupSearch()
         render()
         dialog.setOnDismissListener { searchJob?.cancel() }
+        if (carDisplay) {
+            // Màn hình xe thấp: mở hẳn bảng, khỏi phải kéo lên mới thấy bàn phím.
+            dialog.behavior.skipCollapsed = true
+            dialog.behavior.state = BottomSheetBehavior.STATE_EXPANDED
+        }
         dialog.show()
     }
 
@@ -88,6 +106,62 @@ class LibrarySheet(
             if (actionId == EditorInfo.IME_ACTION_SEARCH) { runSearch(); true } else false
         }
         binding.searchGo.setOnClickListener { runSearch() }
+
+        val voice = onVoice
+        if (voice == null) {
+            binding.searchMic.visibility = View.GONE
+        } else {
+            val listen = {
+                voice { text ->
+                    binding.searchField.setText(text)
+                    binding.searchField.setSelection(text.length)
+                    runSearch()
+                }
+            }
+            binding.searchMic.setOnClickListener { listen() }
+            binding.sheetCarKeyboard.onVoice = listen
+        }
+
+        if (carDisplay) setupCarKeyboard()
+
+        // Kéo gần tới cuối danh sách kết quả thì tải trang sau.
+        binding.queueScroll.setOnScrollChangeListener(
+            NestedScrollView.OnScrollChangeListener { v, _, scrollY, _, _ ->
+                if (tab != Tab.SEARCH || nextPage == null || loadingMore) {
+                    return@OnScrollChangeListener
+                }
+                val content = v.getChildAt(0)?.height ?: return@OnScrollChangeListener
+                if (scrollY + v.height >= content - LOAD_MORE_THRESHOLD_PX) loadMore()
+            }
+        )
+    }
+
+    private fun setupCarKeyboard() {
+        val field = binding.searchField
+        val keyboard = binding.sheetCarKeyboard
+        field.showSoftInputOnFocus = false
+        field.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) keyboard.visibility = View.VISIBLE
+        }
+        field.setOnClickListener { keyboard.visibility = View.VISIBLE }
+        keyboard.onKey = { c ->
+            val text = field.text
+            if (text != null) {
+                val a = field.selectionStart.coerceIn(0, text.length)
+                val b = field.selectionEnd.coerceIn(0, text.length)
+                text.replace(minOf(a, b), maxOf(a, b), c.toString())
+            }
+        }
+        keyboard.onBackspace = {
+            val text = field.text
+            if (text != null) {
+                val a = field.selectionStart
+                val b = field.selectionEnd
+                if (a != b) text.delete(minOf(a, b), maxOf(a, b))
+                else if (a > 0) text.delete(a - 1, a)
+            }
+        }
+        keyboard.onSearch = { runSearch() }
     }
 
     private fun runSearch() {
@@ -96,24 +170,74 @@ class LibrarySheet(
         val scope = (activity as? LifecycleOwner)?.lifecycleScope ?: return
         hideKeyboard()
         searchJob?.cancel()
+        searchQuery = query
         results = emptyList()
+        nextPage = null
+        loadingMore = false
         searchStatus = R.string.library_searching
         render()
         searchJob = scope.launch {
-            val found = YouTubeSearch.search(query)
-            results = found.getOrDefault(emptyList())
+            val found = YouTubeSearch.searchPage(query)
+            val page = found.getOrNull()
+            results = page?.items.orEmpty()
+            nextPage = page?.next
             searchStatus = when {
                 found.isFailure -> R.string.library_search_error
                 results.isEmpty() -> R.string.library_search_none
                 else -> 0
             }
-            if (tab == Tab.SEARCH) render()
+            if (tab == Tab.SEARCH) {
+                render()
+                binding.queueScroll.scrollTo(0, 0)
+            }
         }
+    }
+
+    /** Trang kết quả kế tiếp, nối vào cuối danh sách (không vẽ lại từ đầu). */
+    private fun loadMore() {
+        val token = nextPage ?: return
+        val scope = (activity as? LifecycleOwner)?.lifecycleScope ?: return
+        loadingMore = true
+        showLoadingRow(true)
+        val query = searchQuery
+        searchJob = scope.launch {
+            val page = YouTubeSearch.searchPage(query, token).getOrNull()
+            loadingMore = false
+            if (query != searchQuery) return@launch
+            showLoadingRow(false)
+            // Mất mạng giữa chừng: giữ mã cũ, kéo lại là thử lại.
+            if (page == null) return@launch
+            nextPage = page.next
+            val known = results.mapTo(HashSet()) { it.id }
+            val fresh = page.items.filter { it.id !in known }
+            results = results + fresh
+            if (tab != Tab.SEARCH) return@launch
+            val inflater = activity.layoutInflater
+            for (item in fresh) {
+                binding.queueList.addView(buildTrackRow(inflater, binding.queueList, item, null))
+            }
+        }
+    }
+
+    private fun showLoadingRow(show: Boolean) {
+        loadingRow?.let { binding.queueList.removeView(it) }
+        loadingRow = null
+        if (!show || tab != Tab.SEARCH) return
+        loadingRow = TextView(activity).apply {
+            setText(R.string.library_loading_more)
+            setTextColor(activity.getColor(R.color.drive_text_dim))
+            textSize = 14f
+            gravity = android.view.Gravity.CENTER
+            val pad = (16 * activity.resources.displayMetrics.density).toInt()
+            setPadding(pad, pad, pad, pad)
+        }
+        binding.queueList.addView(loadingRow)
     }
 
     private fun hideKeyboard() {
         val imm = activity.getSystemService(InputMethodManager::class.java)
         imm?.hideSoftInputFromWindow(binding.searchField.windowToken, 0)
+        binding.sheetCarKeyboard.visibility = View.GONE
         binding.searchField.clearFocus()
     }
 
@@ -142,6 +266,8 @@ class LibrarySheet(
         val list = binding.queueList
         list.removeAllViews()
         binding.searchBox.visibility = if (tab == Tab.SEARCH) View.VISIBLE else View.GONE
+        if (tab != Tab.SEARCH) binding.sheetCarKeyboard.visibility = View.GONE
+        loadingRow = null
 
         when (tab) {
             Tab.SEARCH -> {
@@ -306,6 +432,11 @@ class LibrarySheet(
         }
         binding.queueEmpty.visibility = View.VISIBLE
         binding.queueEmpty.setText(textRes)
+    }
+
+    private companion object {
+        /** Còn chừng này px nữa là chạm đáy thì tải trang sau. */
+        const val LOAD_MORE_THRESHOLD_PX = 600
     }
 
     private fun toast(resId: Int) {

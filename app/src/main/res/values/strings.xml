@@ -22,9 +22,16 @@
 
     <string name="settings_open">Cài đặt</string>
 
-    <string name="about_org">Gosei Việt Nam</string>
-    <string name="about_tagline">App cộng đồng</string>
-    <string name="about_link">gosei.com.vn</string>
+    <string name="donate_title">Ủng hộ tác giả</string>
+    <string name="donate_subtitle">DriveTune miễn phí — thấy hay thì mời một ly cà phê nhé ☕</string>
+    <string name="donate_account_short">BIDV · VO HAI NAM</string>
+    <string name="donate_bank">Ngân hàng TMCP Đầu tư và Phát triển Việt Nam (BIDV)</string>
+    <string name="donate_name">VO HAI NAM</string>
+    <string name="donate_account">2152709353</string>
+    <string name="donate_hint">Mở app ngân hàng, quét mã để chuyển khoản.</string>
+    <string name="donate_copy">Sao chép số tài khoản</string>
+    <string name="donate_copied">Đã sao chép số tài khoản</string>
+    <string name="donate_close">Đóng</string>
     <string name="update_row">Cập nhật lên bản %1$s</string>
     <string name="update_downloading">Đang tải bản %1$s… xong sẽ hỏi cài đặt</string>
     <string name="update_available_toast">Có DriveTune %1$s mới — chạm logo để cập nhật</string>
@@ -65,6 +72,7 @@
     <string name="library_search_hint">Tên bài, ca sĩ…</string>
     <string name="library_search_empty">Tìm bài rồi bấm + để thêm vào hàng chờ.</string>
     <string name="library_searching">Đang tìm…</string>
+    <string name="library_loading_more">Đang tải thêm…</string>
     <string name="library_search_none">Không tìm thấy bài nào.</string>
     <string name="library_search_error">Không tìm được, kiểm tra mạng rồi thử lại.</string>
     <string name="library_tab_favorites">Yêu thích</string>
@@ -130,16 +138,16 @@ Bấm hình trái tim trong chế độ lái để lưu bài đang nghe.</string
     <string name="settings_show_video">Hiện video (tắt: chỉ nghe, hiện ảnh nền)</string>
     <string name="settings_player_bg_title">Hình nền màn phát</string>
     <string name="settings_player_bg_value">Hình nền: %1$s</string>
-    <string name="bg_night_sea">Biển đêm</string>
-    <string name="bg_mountain_night">Núi đêm</string>
-    <string name="bg_aurora">Cực quang</string>
-    <string name="bg_forest_dusk">Rừng chiều</string>
-    <string name="bg_graphite">Than chì</string>
-    <string name="bg_morning_mist">Sương sớm</string>
-    <string name="bg_dunes">Đồi cát</string>
-    <string name="bg_mint">Bạc hà</string>
-    <string name="bg_pastel_sunset">Hoàng hôn dịu</string>
-    <string name="bg_cloud_sky">Trời mây</string>
+    <string name="bg_lavender">Đồng oải hương</string>
+    <string name="bg_beach">Biển nhiệt đới</string>
+    <string name="bg_sakura">Hoa anh đào</string>
+    <string name="bg_tea_hills">Đồi chè</string>
+    <string name="bg_autumn">Rừng thu</string>
+    <string name="bg_snow_peaks">Núi tuyết</string>
+    <string name="bg_meadow">Đồng hoa</string>
+    <string name="bg_ocean_deep">Đáy biển</string>
+    <string name="bg_city_night">Phố đêm</string>
+    <string name="bg_galaxy">Dải ngân hà</string>
     <string name="settings_force_dark">Luôn dùng nền tối</string>
     <string name="settings_default_playlist">Danh sách mặc định</string>
     <string name="settings_default_playlist_none">Chưa đặt</string>

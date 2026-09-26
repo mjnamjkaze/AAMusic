@@ -23,6 +23,9 @@ import java.net.URLEncoder
  */
 object YouTubeSearch {
 
+    /** Một trang kết quả; [next] là mã để xin trang sau (null = hết). */
+    data class Page(val items: List<VideoItem>, val next: String?)
+
     private const val API_URL = "https://www.youtube.com/youtubei/v1/search?prettyPrint=false"
     private const val HTML_URL = "https://www.youtube.com/results?search_query="
 
@@ -61,8 +64,42 @@ object YouTubeSearch {
             }
         }
 
-    private fun viaApi(query: String): List<VideoItem> {
-        val body = JSONObject()
+    /**
+     * Tìm theo trang cho danh sách kéo xuống là hiện thêm: trang đầu gọi với
+     * [continuation] = null, các trang sau truyền [Page.next] của trang trước.
+     */
+    suspend fun searchPage(query: String, continuation: String? = null): Result<Page> =
+        withContext(Dispatchers.IO) {
+            val q = query.trim()
+            if (q.isEmpty()) return@withContext Result.success(Page(emptyList(), null))
+            if (continuation != null) {
+                return@withContext runCatching {
+                    val root = callApi(JSONObject().put("continuation", continuation))
+                    Page(parse(root), findContinuation(root))
+                }
+            }
+            val api = runCatching {
+                callApi(JSONObject().put("query", q).put("params", VIDEOS_ONLY))
+            }
+            api.getOrNull()?.let { root ->
+                val items = parse(root)
+                if (items.isNotEmpty()) return@withContext Result.success(Page(items, findContinuation(root)))
+            }
+            val html = runCatching { htmlInitialData(q) }
+            val root = html.getOrNull()
+            when {
+                root != null -> Result.success(Page(parse(root), findContinuation(root)))
+                api.isSuccess || html.isSuccess -> Result.success(Page(emptyList(), null))
+                else -> Result.failure(api.exceptionOrNull() ?: IllegalStateException())
+            }
+        }
+
+    private fun viaApi(query: String): List<VideoItem> =
+        parse(callApi(JSONObject().put("query", query).put("params", VIDEOS_ONLY)))
+
+    /** POST `youtubei/v1/search` với [request] (query hoặc continuation) + context. */
+    private fun callApi(request: JSONObject): JSONObject {
+        val body = request
             .put(
                 "context", JSONObject().put(
                     "client", JSONObject()
@@ -72,8 +109,6 @@ object YouTubeSearch {
                         .put("gl", "VN")
                 )
             )
-            .put("query", query)
-            .put("params", VIDEOS_ONLY)
             .toString()
 
         val conn = open(API_URL).apply {
@@ -89,21 +124,24 @@ object YouTubeSearch {
             conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
             if (conn.responseCode != HttpURLConnection.HTTP_OK) error("HTTP ${conn.responseCode}")
             val text = conn.inputStream.bufferedReader().use { it.readText() }
-            return parse(JSONObject(text))
+            return JSONObject(text)
         } finally {
             conn.disconnect()
         }
     }
 
-    private fun viaHtml(query: String): List<VideoItem> {
+    private fun viaHtml(query: String): List<VideoItem> =
+        htmlInitialData(query)?.let(::parse).orEmpty()
+
+    private fun htmlInitialData(query: String): JSONObject? {
         val url = HTML_URL + URLEncoder.encode(query, "UTF-8") +
             "&sp=" + URLEncoder.encode(VIDEOS_ONLY, "UTF-8") + "&hl=vi&gl=VN"
         val conn = open(url)
         try {
             if (conn.responseCode != HttpURLConnection.HTTP_OK) error("HTTP ${conn.responseCode}")
             val html = conn.inputStream.bufferedReader().use { it.readText() }
-            val json = extractInitialData(html) ?: return emptyList()
-            return parse(JSONObject(json))
+            val json = extractInitialData(html) ?: return null
+            return JSONObject(json)
         } finally {
             conn.disconnect()
         }
@@ -155,6 +193,28 @@ object YouTubeSearch {
         val out = LinkedHashMap<String, VideoItem>()
         collect(root, out)
         return out.values.toList()
+    }
+
+    /** Mã trang sau: `continuationItemRenderer…continuationCommand.token`. */
+    internal fun findContinuation(node: Any?, inside: Boolean = false): String? {
+        when (node) {
+            is JSONObject -> {
+                if (inside) {
+                    node.optJSONObject("continuationCommand")?.optString("token")
+                        ?.takeIf { it.isNotBlank() }?.let { return it }
+                }
+                val keys = node.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    findContinuation(node.opt(key), inside || key == "continuationItemRenderer")
+                        ?.let { return it }
+                }
+            }
+            is JSONArray -> for (i in 0 until node.length()) {
+                findContinuation(node.opt(i), inside)?.let { return it }
+            }
+        }
+        return null
     }
 
     /** Dò đệ quy mọi kiểu ô video mà YouTube đang dùng, giữ thứ tự xuất hiện. */

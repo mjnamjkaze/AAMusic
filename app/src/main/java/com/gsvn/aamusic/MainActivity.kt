@@ -285,10 +285,27 @@ class MainActivity : AppCompatActivity() {
         val sheet = LibrarySheet(
             this,
             onPlay = { item -> playTrack(item) },
-            onPlaylist = { playlist -> openPlaylist(playlist) }
+            onPlaylist = { playlist -> openPlaylist(playlist) },
+            carDisplay = isCarDisplay(),
+            onVoice = { onText -> listenOnce(onText) }
         )
         sheet.onLibraryChanged = { driveMode?.refreshFavorite() }
         sheet.show()
+    }
+
+    /** Nghe một câu cho ô tìm của bảng thư viện (không tự phát như nút mic chính). */
+    private fun listenOnce(onText: (String) -> Unit) {
+        val canRecord = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        if (!canRecord || !voiceListener.isAvailable) {
+            Toast.makeText(this, R.string.voice_search_unavailable, Toast.LENGTH_SHORT).show()
+            return
+        }
+        Toast.makeText(this, R.string.voice_search_prompt, Toast.LENGTH_SHORT).show()
+        voiceListener.listen(
+            onResult = onText,
+            onFail = { Toast.makeText(this, R.string.voice_not_heard, Toast.LENGTH_SHORT).show() }
+        )
     }
 
     private fun playTrack(item: VideoItem) {
