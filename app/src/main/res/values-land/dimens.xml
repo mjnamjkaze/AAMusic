@@ -11,5 +11,6 @@
     <dimen name="drive_small_button">60dp</dimen>
     <dimen name="drive_title_text">24sp</dimen>
     <dimen name="drive_subtitle_text">16sp</dimen>
+    <dimen name="drive_speed_text">96sp</dimen>
 </resources>
 

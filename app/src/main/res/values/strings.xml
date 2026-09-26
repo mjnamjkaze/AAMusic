@@ -41,6 +41,8 @@
     <string name="drive_mode_title">DRIVETUNE</string>
     <string name="drive_mode_open">Chế độ lái</string>
     <string name="drive_mode_exit">Thoát chế độ lái</string>
+    <string name="drive_speed_unknown">--</string>
+    <string name="drive_speed_unit">km/h</string>
     <string name="drive_nothing_playing">Chưa phát bài nào</string>
     <string name="drive_unknown_track">Không rõ tên bài</string>
     <string name="drive_play">Phát</string>
@@ -118,6 +120,14 @@ Bấm hình trái tim trong chế độ lái để lưu bài đang nghe.</string
     <string name="settings_voice">Hiểu lệnh nói</string>
     <string name="settings_data_saver">Tiết kiệm dữ liệu (chỉ tải tiếng)</string>
     <string name="settings_show_video">Hiện video (tắt: chỉ nghe, hiện đĩa nhạc quay)</string>
+    <string name="settings_show_speed">Hiện tốc độ xe (số to, thay đĩa nhạc)</string>
+    <string name="settings_speed_permission_denied">Cần quyền vị trí (GPS) để đo tốc độ xe</string>
+    <string name="settings_player_bg_title">Hình nền màn phát</string>
+    <string name="settings_player_bg_value">Hình nền: %1$s</string>
+    <string name="bg_none">Ảnh bài hát</string>
+    <string name="bg_night_drive">Đường đêm</string>
+    <string name="bg_aurora">Cực quang</string>
+    <string name="bg_sunset">Hoàng hôn</string>
     <string name="settings_force_dark">Luôn dùng nền tối</string>
     <string name="settings_default_playlist">Danh sách mặc định</string>
     <string name="settings_default_playlist_none">Chưa đặt</string>

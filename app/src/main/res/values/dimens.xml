@@ -27,6 +27,7 @@
     <dimen name="drive_small_button">64dp</dimen>
     <dimen name="drive_title_text">26sp</dimen>
     <dimen name="drive_subtitle_text">17sp</dimen>
+    <dimen name="drive_speed_text">112sp</dimen>
 
     <!-- Button Sizes -->
     <dimen name="icon_button_size">48dp</dimen>

@@ -50,6 +50,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import com.google.android.material.color.DynamicColors
 import com.gsvn.aamusic.car.CarConnection
 import com.gsvn.aamusic.car.CarPlayback
+import com.gsvn.aamusic.car.SpeedMeter
 import com.gsvn.aamusic.data.DriveLibrary
 import com.gsvn.aamusic.data.DrivePlaylist
 import com.gsvn.aamusic.data.DrivePlaylists
@@ -96,6 +97,13 @@ class MainActivity : AppCompatActivity() {
     // ── Chế độ lái + thư viện ───────────────────────────────────────
     private var driveMode: DriveMode? = null
     private lateinit var carConnection: CarConnection
+
+    // ── Tốc độ xe (GPS) ─────────────────────────────────────────────
+    private val speedMeter by lazy { SpeedMeter(this) { kmh -> onSpeed(kmh) } }
+    private var lastSpeedKmh: Int? = null
+
+    /** Bảng Cài đặt đang mở (nếu có) — để gạt lại công tắc khi bị từ chối quyền. */
+    private var settingsSheet: SettingsSheet? = null
 
     /** Nghe giọng nói ngay trong app, không qua hộp thoại của hệ thống. */
     private val voiceListener by lazy { VoiceListener(this) }
@@ -239,6 +247,7 @@ class MainActivity : AppCompatActivity() {
         parent.addView(fresh)
 
         driveMode = DriveMode(this, fresh, onOpenLibrary = { showLibrary() })
+        driveMode?.showSpeed(lastSpeedKmh)
         if (wasVisible) {
             driveMode?.show()
             PlayerController.queryState { state -> driveMode?.render(state) }
@@ -367,10 +376,13 @@ class MainActivity : AppCompatActivity() {
         updateOverlayButton()
         PlaybackHost.activityResumed = true
         PlaybackHost.addListener(stateListener)
+        updateSpeedMeter()
     }
 
     override fun onPause() {
         voiceListener.cancel()
+        // Không ai nhìn màn hình thì khỏi bật GPS.
+        speedMeter.stop()
         PlaybackHost.activityResumed = false
         PlaybackHost.removeListener(stateListener)
         exitFullscreen()
@@ -489,7 +501,7 @@ class MainActivity : AppCompatActivity() {
         binding.overlayButton.setOnClickListener { openOverlaySettings() }
         binding.headerLogo.contentDescription = getString(R.string.settings_open)
         binding.headerLogo.setOnClickListener {
-            SettingsSheet(this) { key -> onSettingChanged(key) }.show()
+            settingsSheet = SettingsSheet(this) { key -> onSettingChanged(key) }.also { it.show() }
         }
         binding.micButton.setOnClickListener { startVoiceSearch() }
         binding.searchInput.doAfterTextChanged { text ->
@@ -518,7 +530,41 @@ class MainActivity : AppCompatActivity() {
             DriveSettings.KEY_FORCE_DARK -> applyNightMode()
             DriveSettings.KEY_DATA_SAVER,
             DriveSettings.KEY_SHOW_VIDEO -> applyDataSaver()
+            DriveSettings.KEY_SHOW_SPEED -> {
+                if (DriveSettings.isOn(this, key) && !speedMeter.hasPermission()) {
+                    ActivityCompat.requestPermissions(
+                        this,
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        ),
+                        RC_LOCATION
+                    )
+                }
+                applyPlayerFace()
+                updateSpeedMeter()
+            }
+            DriveSettings.KEY_PLAYER_BG -> applyPlayerFace()
         }
+    }
+
+    /** Hình nền + tốc độ: vẽ lại cả trên trang lẫn trong Chế độ lái. */
+    private fun applyPlayerFace() {
+        applyDataSaver()
+        driveMode?.applyFacePrefs()
+    }
+
+    // ── Tốc độ xe ──────────────────────────────────────────────────
+
+    private fun updateSpeedMeter() {
+        if (DriveSettings.isOn(this, DriveSettings.KEY_SHOW_SPEED)) speedMeter.start()
+        else speedMeter.stop()
+    }
+
+    private fun onSpeed(kmh: Int?) {
+        lastSpeedKmh = kmh
+        driveMode?.showSpeed(kmh)
+        VideoMode.showSpeed(webView, kmh)
     }
 
     private fun applyNightMode() {
@@ -1038,6 +1084,20 @@ class MainActivity : AppCompatActivity() {
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == RC_LOCATION) {
+            // Chỉ cho vị trí "gần đúng" thì GPS không chạy — coi như từ chối.
+            if (speedMeter.hasPermission()) {
+                updateSpeedMeter()
+            } else {
+                DriveSettings.set(this, DriveSettings.KEY_SHOW_SPEED, false)
+                settingsSheet?.sync()
+                applyPlayerFace()
+                Toast.makeText(
+                    this, R.string.settings_speed_permission_denied, Toast.LENGTH_LONG
+                ).show()
+            }
+            return
+        }
         if (requestCode == RC_AUDIO) {
             val granted = grantResults.isNotEmpty() &&
                     grantResults[0] == PackageManager.PERMISSION_GRANTED
@@ -1068,6 +1128,7 @@ class MainActivity : AppCompatActivity() {
 
         private const val RC_AUDIO = 1102
         private const val RC_STARTUP_PERMISSIONS = 1103
+        private const val RC_LOCATION = 1104
 
         const val ACTION_SEARCH = "com.gsvn.aamusic.action.SEARCH"
         const val EXTRA_QUERY = "com.gsvn.aamusic.extra.QUERY"

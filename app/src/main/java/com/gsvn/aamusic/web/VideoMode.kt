@@ -3,6 +3,7 @@ package com.gsvn.aamusic.web
 import android.content.Context
 import android.webkit.WebView
 import com.gsvn.aamusic.data.DriveSettings
+import com.gsvn.aamusic.data.PlayerBackgrounds
 
 /**
  * Công tắc "Hiện video".
@@ -15,20 +16,38 @@ import com.gsvn.aamusic.data.DriveSettings
  *
  * Chỉ đổi giao diện trong trang (một lớp CSS trên `<html>`), không nạp lại
  * trang nên bật/tắt giữa bài không làm nhạc ngắt.
+ *
+ * Chỗ của đĩa nhạc còn nhận thêm hai tuỳ chọn:
+ *  - **Hình nền** ([PlayerBackgrounds]): ảnh HD phủ kín khung thay cho đĩa
+ *    và ảnh bìa bài hát.
+ *  - **Tốc độ xe**: số km/h thật to giữa khung (đè lên hình nền nếu có),
+ *    thay cho đĩa nhạc. Số do MainActivity đẩy vào qua [showSpeed].
  */
 object VideoMode {
 
-    /** Áp cả hai tuỳ chọn liên quan (video, tiết kiệm dữ liệu) lên [webView]. */
+    /** Áp các tuỳ chọn liên quan (video, tiết kiệm dữ liệu, hình nền, tốc độ) lên [webView]. */
     fun applyPrefs(context: Context, webView: WebView?) {
         val view = webView ?: return
         val showVideo = DriveSettings.isOn(context, DriveSettings.KEY_SHOW_VIDEO)
         val dataSaver = DriveSettings.isOn(context, DriveSettings.KEY_DATA_SAVER)
+        val showSpeed = DriveSettings.isOn(context, DriveSettings.KEY_SHOW_SPEED)
+        // Chỉ nhận id có thật — chuỗi này được ghép thẳng vào JS.
+        val bg = PlayerBackgrounds.byId(DriveSettings.playerBackground(context))?.id.orEmpty()
         view.evaluateJavascript(
             "window.__ytaShowVideo=$showVideo;" +
-                "document.documentElement.classList.toggle('yta-audio-only',${!showVideo});",
+                "document.documentElement.classList.toggle('yta-audio-only',${!showVideo});" +
+                "window.__ytaFace={bg:'$bg',speed:$showSpeed};" +
+                "window.__ytaApplyFace&&window.__ytaApplyFace();",
             null
         )
         PlaybackGuard.setDataSaver(view, dataSaver && !showVideo)
+    }
+
+    /** Cập nhật số km/h trên trang; null = chưa có GPS, hiện "--". */
+    fun showSpeed(webView: WebView?, kmh: Int?) {
+        webView?.evaluateJavascript(
+            "window.__ytaShowSpeed&&window.__ytaShowSpeed(${kmh ?: -1});", null
+        )
     }
 
     /**
@@ -51,8 +70,9 @@ object VideoMode {
                 'html.yta-audio-only #song-video, html.yta-audio-only ytmusic-player #video,',
                 'html.yta-audio-only .video-stream { visibility: hidden !important; }',
                 '#yta-disc { display: none; position: absolute; left: 0; top: 0; right: 0; bottom: 0;',
-                '  align-items: center; justify-content: center; background: #000;',
-                '  pointer-events: none; }',
+                '  align-items: center; justify-content: center;',
+                '  background: #000 center / cover no-repeat;',
+                '  container-type: size; pointer-events: none; }',
                 'html.yta-audio-only #yta-disc { display: flex; }',
                 '#yta-disc .yta-d { height: 86%; aspect-ratio: 1 / 1; border-radius: 50%;',
                 '  background: repeating-radial-gradient(circle, #101010 0 2px, #1d1d1d 2px 4px);',
@@ -64,7 +84,18 @@ object VideoMode {
                 '  background: #333 center / cover no-repeat; box-shadow: 0 0 0 3px #000; }',
                 '#yta-disc .yta-l::after { content: ""; position: absolute; left: 50%; top: 50%;',
                 '  width: 12%; height: 12%; margin: -6% 0 0 -6%; border-radius: 50%; background: #000; }',
-                '@keyframes yta-spin { to { transform: rotate(360deg); } }'
+                '@keyframes yta-spin { to { transform: rotate(360deg); } }',
+                '#yta-disc.yta-has-bg .yta-d, #yta-disc.yta-has-speed .yta-d { display: none; }',
+                '#yta-disc.yta-has-bg.yta-has-speed::before { content: ""; position: absolute;',
+                '  left: 0; top: 0; right: 0; bottom: 0; background: rgba(0,0,0,.35); }',
+                '#yta-disc .yta-s { display: none; position: relative; flex-direction: column;',
+                '  align-items: center; color: #fff; line-height: 1;',
+                '  font-family: Roboto, Arial, sans-serif; text-shadow: 0 2px 16px rgba(0,0,0,.7); }',
+                '#yta-disc.yta-has-speed .yta-s { display: flex; }',
+                '#yta-disc .yta-s b { font-size: 52cqh; font-weight: 800; letter-spacing: -0.03em;',
+                '  font-variant-numeric: tabular-nums; }',
+                '#yta-disc .yta-s i { font-size: 11cqh; font-style: normal; font-weight: 600;',
+                '  margin-top: 2cqh; opacity: .85; }'
             ].join('\n');
             var style = document.createElement('style');
             style.textContent = css;
@@ -82,6 +113,32 @@ object VideoMode {
 
             var shownId = null;
 
+            // Hình nền + tốc độ theo window.__ytaFace (applyPrefs đặt). Chạy
+            // mỗi nhịp nên không phụ thuộc thứ tự nạp với applyPrefs.
+            function applyFace(disc) {
+                disc = disc || document.getElementById('yta-disc');
+                if (!disc) return;
+                var f = window.__ytaFace || {};
+                var url = f.bg ? location.origin + '/__drivetune/bg/' + f.bg + '.jpg' : '';
+                if (disc.__ytaBg !== url) {
+                    disc.__ytaBg = url;
+                    disc.style.backgroundImage = url ? 'url("' + url + '")' : '';
+                }
+                disc.classList.toggle('yta-has-bg', !!url);
+                disc.classList.toggle('yta-has-speed', !!f.speed);
+            }
+            window.__ytaApplyFace = function() { applyFace(null); };
+
+            function speedText() {
+                var k = window.__ytaSpeedKmh;
+                return (typeof k === 'number' && k >= 0) ? String(k) : '--';
+            }
+            window.__ytaShowSpeed = function(kmh) {
+                window.__ytaSpeedKmh = kmh;
+                var b = document.querySelector('#yta-disc .yta-s b');
+                if (b) b.textContent = speedText();
+            };
+
             setInterval(function() {
                 var v = mainVideo();
                 var player = v && v.closest && v.closest('#movie_player, .html5-video-player');
@@ -93,7 +150,9 @@ object VideoMode {
                     if (old) old.remove();
                     disc = document.createElement('div');
                     disc.id = 'yta-disc';
-                    disc.innerHTML = '<div class="yta-d"><div class="yta-l"></div></div>';
+                    disc.innerHTML = '<div class="yta-d"><div class="yta-l"></div></div>' +
+                        '<div class="yta-s"><b></b><i>km/h</i></div>';
+                    disc.querySelector('.yta-s b').textContent = speedText();
                     var box = player.querySelector(':scope > .html5-video-container');
                     if (box && box.nextSibling) player.insertBefore(disc, box.nextSibling);
                     else player.appendChild(disc);
@@ -106,6 +165,7 @@ object VideoMode {
                     disc.querySelector('.yta-l').style.backgroundImage =
                         id ? 'url("https://i.ytimg.com/vi/' + id + '/mqdefault.jpg")' : '';
                 }
+                applyFace(disc);
                 disc.firstChild.classList.toggle('yta-on', !v.paused && !v.ended);
             }, 1000);
         })();

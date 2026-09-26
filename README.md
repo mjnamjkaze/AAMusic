@@ -9,6 +9,8 @@
 - ✅ **Android Auto khi xe đang chạy**: dùng giao diện media chuẩn của Android Auto (Yêu thích · Danh sách · Vừa nghe · Tìm kiếm), chạm một lần là phát.
 - 🎙️ **Tìm và phát bằng giọng nói**: nói tên bài, ca sĩ hoặc thể loại, app phát ngay bài đầu tiên và xếp các bài sau vào hàng chờ.
 - 🎬 **Bật/tắt video**: bật để xem video như YouTube; tắt để chỉ nghe, màn hình hiện **đĩa nhạc quay** kèm ảnh bìa, lại đỡ tốn 3G/4G.
+- 🚀 **Hiện tốc độ xe**: số km/h thật to, đo bằng GPS, thay cho đĩa nhạc.
+- 🖼️ **Hình nền HD cho màn phát**: Đường đêm · Cực quang · Hoàng hôn, thay cho ảnh bìa bài hát.
 - 🔇 **Không quảng cáo**: chặn từ gốc, bài vào luôn không phải chờ.
 - 📱 **Phát nền, tắt màn hình vẫn nghe**, có bong bóng nổi để điều khiển trên Google Maps.
 - 🚗 **Chế độ lái**: nút to, nền tối, nút vô lăng chuyển bài được.
@@ -36,6 +38,10 @@ Từ 2.4.0, app phát được **mà không cần mở trên điện thoại**. 
 
 **Nói xong mà không tìm gì?** Đã sửa ở 2.4.0: câu nói được nhận ngay trong app, không qua hộp thoại riêng (hộp thoại này hay không hiện được trên màn hình xe), rồi phát bài đầu tiên luôn.
 
+**App có hiện được tốc độ xe không?** Có. Vào Cài đặt (chạm logo) → bật **Hiện tốc độ xe**, cho phép quyền vị trí. Tốc độ đo bằng **GPS của điện thoại** (Android Auto không cho app nhạc đọc tốc độ từ xe), nên có thể lệch vài km/h so với đồng hồ xe. GPS chỉ chạy khi màn hình app đang hiện.
+
+**Đổi hình nền màn phát?** Cài đặt → **Hình nền** → chọn Đường đêm, Cực quang hoặc Hoàng hôn (ảnh HD có sẵn trong app, không tải qua mạng). Chọn *Ảnh bài hát* để quay lại đĩa nhạc như cũ.
+
 **Tốn dữ liệu di động không?** Tắt *Hiện video* và bật *Tiết kiệm dữ liệu* trong Cài đặt (chạm logo). Khi đó mất khoảng 90 MB mỗi giờ.
 
 ---
@@ -45,7 +51,7 @@ Từ 2.4.0, app phát được **mà không cần mở trên điện thoại**. 
 Ứng dụng Android bọc WebView phát **YouTube / YouTube Music dạng audio-first**, làm riêng cho lúc lái xe — **Chế độ lái** nút to chữ rõ, thư viện Yêu thích / Hàng chờ / Danh sách dựng sẵn, nghe tiếp từ chỗ đang dở, lệnh nói, chạy nhạc nền, chặn quảng cáo, và **chạy được trên Android Auto** (cả giao diện media chuẩn lẫn chiếu màn hình).
 
 - Package: `com.gsvn.aamusic`
-- minSdk 35 · targetSdk 36 · versionName 2.4.0
+- minSdk 35 · targetSdk 36 · versionName 2.5.0
 - Ngôn ngữ: Kotlin + WebView (không dùng thư viện player riêng)
 
 > ⚠️ Dự án mang tính học tập / cá nhân. Việc bọc YouTube trong WebView, chặn quảng cáo và giả dạng app điều hướng để lên Android Auto có thể vi phạm ToS của YouTube/Google. Tự chịu trách nhiệm khi dùng.
@@ -126,6 +132,11 @@ App **không** dùng player audio riêng; nó vẫn phát thẻ `<video>` của 
 - **Bật**: hiện video như YouTube và bỏ ép chất lượng.
 
 Đổi công tắc chỉ đổi một class CSS, không nạp lại trang, nên nhạc không bị ngắt. Đĩa được chèn ngay sau khung video trong `#movie_player`, không đặt `z-index`, và có `pointer-events: none`. Vì vậy nút điều khiển của trình phát vẫn nằm trên đĩa và vẫn bấm được.
+
+Chỗ của đĩa còn nhận hai tuỳ chọn (cũng áp vào ô ảnh bìa của Chế độ lái):
+
+- **Hình nền** ([PlayerBackgrounds](app/src/main/java/com/gsvn/aamusic/data/PlayerBackgrounds.kt)): 3 ảnh JPEG 1920×1080 trong `res/drawable-nodpi`. Trang nạp ảnh qua đường dẫn giả `<origin>/__drivetune/bg/<id>.jpg`; `shouldInterceptRequest` trả thẳng từ tài nguyên của app, cùng origin nên không vướng CSP, không nhân đôi tệp.
+- **Tốc độ xe** ([SpeedMeter](app/src/main/java/com/gsvn/aamusic/car/SpeedMeter.kt)): `LocationManager.GPS_PROVIDER` mỗi giây, `Location.speed × 3,6`, dưới 3 km/h hiện 0, mất tín hiệu quá 6 giây hiện `--`. Chỉ chạy giữa `onResume`/`onPause` của MainActivity. Số được đẩy vào trang bằng `window.__ytaShowSpeed(kmh)`; cỡ chữ theo `cqh` (container query) nên luôn chiếm khoảng nửa chiều cao khung phát.
 
 ### 2. Phát nền khi tắt màn hình / chuyển app (spoof visibility)
 
@@ -433,7 +444,7 @@ Các chi tiết khác:
 - Tải `DriveTune-<version>.apk` ở trang [Releases](https://github.com/mjnamjkaze/DriveTune/releases/latest), copy vào máy và cài (cho phép "Cài từ nguồn không xác định" khi được hỏi), **hoặc**
 - Cài qua ADB:
   ```bash
-  adb install -r DriveTune-2.4.0.apk
+  adb install -r DriveTune-2.5.0.apk
   ```
 
 ### Bước 2 — Bật Developer mode trong app Android Auto

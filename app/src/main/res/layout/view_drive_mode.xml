@@ -87,6 +87,42 @@
                 android:scaleType="centerCrop"
                 android:src="@drawable/ic_music_note"
                 app:tint="@color/drive_text_dim" />
+
+            <!-- Tốc độ xe (tuỳ chọn), đè lên ảnh bìa / hình nền. -->
+            <LinearLayout
+                android:id="@+id/driveSpeedBox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/driveSpeed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFeatureSettings="tnum"
+                    android:includeFontPadding="false"
+                    android:shadowColor="#B3000000"
+                    android:shadowDy="2"
+                    android:shadowRadius="16"
+                    android:text="@string/drive_speed_unknown"
+                    android:textColor="@color/drive_text"
+                    android:textSize="@dimen/drive_speed_text"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:shadowColor="#B3000000"
+                    android:shadowDy="2"
+                    android:shadowRadius="12"
+                    android:text="@string/drive_speed_unit"
+                    android:textColor="@color/drive_text"
+                    android:textSize="@dimen/drive_title_text"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
     </FrameLayout>
 

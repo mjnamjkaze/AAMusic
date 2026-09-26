@@ -22,6 +22,10 @@ object DriveSettings {
     const val KEY_DATA_SAVER = "data_saver"
     const val KEY_FORCE_DARK = "force_dark"
     const val KEY_SHOW_VIDEO = "show_video"
+    const val KEY_SHOW_SPEED = "show_speed"
+
+    /** Không phải công tắc: báo [onSettingChanged] rằng hình nền vừa đổi. */
+    const val KEY_PLAYER_BG = "player_background"
 
     private const val KEY_DEFAULT_PLAYLIST = "default_playlist"
 
@@ -34,7 +38,9 @@ object DriveSettings {
         KEY_DATA_SAVER to true,
         KEY_FORCE_DARK to false,
         // Mặc định chỉ nghe (đĩa nhạc quay) — app dùng lúc lái xe là chính.
-        KEY_SHOW_VIDEO to false
+        KEY_SHOW_VIDEO to false,
+        // Cần quyền vị trí nên phải để người dùng tự bật.
+        KEY_SHOW_SPEED to false
     )
 
     private fun prefs(context: Context) =
@@ -53,5 +59,13 @@ object DriveSettings {
 
     fun setDefaultPlaylist(context: Context, id: String) {
         prefs(context).edit().putString(KEY_DEFAULT_PLAYLIST, id).apply()
+    }
+
+    /** Id của [PlayerBackground] thay ảnh bìa; rỗng = ảnh bài hát như cũ. */
+    fun playerBackground(context: Context): String =
+        prefs(context).getString(KEY_PLAYER_BG, "").orEmpty()
+
+    fun setPlayerBackground(context: Context, id: String) {
+        prefs(context).edit().putString(KEY_PLAYER_BG, id).apply()
     }
 }

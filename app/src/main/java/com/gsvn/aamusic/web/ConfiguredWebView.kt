@@ -16,6 +16,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import com.gsvn.aamusic.data.PlayerBackgrounds
 
 data class BrowserCallbacks(
     val onProgressChange: (Int) -> Unit = {},
@@ -101,6 +102,14 @@ fun configureWebView(
             ): WebResourceResponse? {
                 val blocked = AdBlocker.shouldBlock(request.url?.toString())
                 if (blocked != null) return blocked
+                // Hình nền màn phát (VideoMode) lấy thẳng từ tài nguyên của app.
+                PlayerBackgrounds.byWebPath(request.url?.path)?.let { bg ->
+                    return runCatching {
+                        WebResourceResponse(
+                            "image/jpeg", null, view.resources.openRawResource(bg.drawableRes)
+                        )
+                    }.getOrNull()
+                }
                 return super.shouldInterceptRequest(view, request)
             }
 

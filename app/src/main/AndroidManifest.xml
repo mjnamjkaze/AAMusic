@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Tuỳ chọn "Hiện tốc độ xe": đo bằng GPS, chỉ khi app đang hiện trên màn hình. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Android Auto: required so this WebView app can be projected onto the car
          screen. There is no public "media WebView"/"browser" category for Android
          Auto phone projection, so the app masquerades as a navigation/maps app

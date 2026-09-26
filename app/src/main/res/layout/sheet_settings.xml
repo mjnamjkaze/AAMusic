@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Cài đặt. Cố tình ngắn: bảy công tắc, một dòng dọn bộ nhớ, một dòng giới thiệu.
+  Cài đặt. Cố tình ngắn: tám công tắc, hai dòng chọn (danh sách, hình nền),
+  một dòng dọn bộ nhớ, một dòng giới thiệu.
   Mỗi hàng cao 56dp trở lên để chạm được cả khi xe đang chạy.
 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
@@ -61,6 +62,17 @@
             android:id="@+id/switchShowVideo"
             style="@style/DriveSettingsSwitch"
             android:text="@string/settings_show_video" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchShowSpeed"
+            style="@style/DriveSettingsSwitch"
+            android:text="@string/settings_show_speed" />
+
+        <TextView
+            android:id="@+id/playerBgRow"
+            style="@style/DriveSettingsRow"
+            android:drawablePadding="16dp"
+            app:drawableStartCompat="@drawable/ic_wallpaper" />
 
         <com.google.android.material.materialswitch.MaterialSwitch
             android:id="@+id/switchDataSaver"
